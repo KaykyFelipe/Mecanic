@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Excluir Autopeça - Mecanic AutoPeças{% endblock %}
+
+{% block content %}
+<div class="glass-card" id="delete-glass-card" style="max-width: 600px; margin: 4rem auto; text-align: center;">
+    <div class="card-header" style="justify-content: center;">
+        <h2 class="card-title" style="color: #f87171;"><i class="fa-solid fa-triangle-exclamation"></i> Confirmar Exclusão de Peça</h2>
+    </div>
+    
+    <div class="alert-box" id="delete-alert">
+        Você está prestes a excluir definitivamente a peça <strong>{{ object.nome }}</strong> (SKU: <strong>{{ object.sku }}</strong>) do sistema. Esta ação não poderá ser desfeita!
+    </div>
+    
+    <form method="post" id="delete-form">
+        {% csrf_token %}
+        <div class="form-actions" style="justify-content: center; gap: 1.5rem; border-top: none; padding-top: 0;">
+            <a href="{% url 'estoque-listar' %}" class="btn btn-secondary" id="btn-cancel-delete">
+                Voltar ao Estoque
+            </a>
+            <button type="submit" class="btn btn-danger" id="btn-confirm-delete">
+                Sim, Excluir Definitivamente
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

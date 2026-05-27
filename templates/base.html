@@ -1,0 +1,172 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Mecanic Auto-Peças{% endblock %}</title>
+    
+    <!-- Premium Stylesheet -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    
+    <!-- FontAwesome v6 Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <i class="fa-solid fa-screwdriver-wrench fa-fw" style="color: var(--sidebar-active-bg); margin-right: 0.25rem;"></i> ERP <span>Mecanic</span>
+            </div>
+            
+            <ul class="sidebar-menu">
+                <li>
+                    <div class="sidebar-link" id="menu-dash-inactive" style="cursor: not-allowed;">
+                        <div class="sidebar-link-content">
+                            <i class="fa-solid fa-chart-line fa-fw"></i>
+                            <span>Dashboard</span>
+                        </div>
+                    </div>
+                </li>
+                <li>
+                    <div class="sidebar-link" id="menu-sales-inactive" style="cursor: not-allowed;">
+                        <div class="sidebar-link-content">
+                            <i class="fa-solid fa-cart-shopping fa-fw"></i>
+                            <span>Vendas</span>
+                        </div>
+                    </div>
+                </li>
+                <li>
+                    <div class="sidebar-link" id="menu-finance-inactive" style="cursor: not-allowed;">
+                        <div class="sidebar-link-content">
+                            <i class="fa-solid fa-handshake fa-fw"></i>
+                            <span>Mercado Livre</span>
+                        </div>
+                    </div>
+                </li>
+                <li>
+                    <a href="{% url 'estoque-listar' %}" class="sidebar-link {% if request.resolver_match.url_name == 'estoque-listar' or 'estoque-' in request.resolver_match.url_name %}active{% endif %}" id="menu-estoque">
+                        <div class="sidebar-link-content">
+                            <i class="fa-solid fa-warehouse fa-fw"></i>
+                            <span>Gerenciar produtos</span>
+                        </div>
+                        <span class="sidebar-badge" style="background-color: var(--sidebar-active-bg); width: 8px; height: 8px; border-radius: 50%; display: inline-block;" title="Página Ativa"></span>
+                    </a>
+                </li>
+                <li>
+                    <div class="sidebar-link" id="menu-hr-inactive" style="cursor: not-allowed;">
+                        <div class="sidebar-link-content">
+                            <i class="fa-solid fa-sliders fa-fw"></i>
+                            <span>Parâmetros</span>
+                        </div>
+                    </div>
+                </li>
+            </ul>
+            
+            <!-- Separator/Admin -->
+            <ul class="sidebar-menu" style="margin-top: auto; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 1rem;">
+                <li>
+                    <a href="{% url 'admin:index' %}" class="sidebar-link" id="admin-panel-link" target="_blank">
+                        <div class="sidebar-link-content">
+                            <i class="fa-solid fa-shield-halved fa-fw"></i>
+                            <span>Painel Admin</span>
+                        </div>
+                    </a>
+                </li>
+            </ul>
+        </aside>
+
+        <!-- Right Main Panel -->
+        <div class="main-content">
+            <!-- Topbar Header -->
+            <header class="top-bar">
+                <div class="top-bar-title" id="page-title-display">
+                    {% block module_title %}Gerenciar produtos{% endblock %}
+                </div>
+                
+                <!-- Search Box inside Topbar -->
+                <div class="top-bar-search">                    <form method="get" action="{% url 'estoque-listar' %}" id="global-search-form">
+                        <div class="top-bar-search-wrapper">
+                            <span class="top-bar-search-icon"><i class="fa-solid fa-magnifying-glass"></i></span>
+                            <input type="text" name="q" value="{{ q|default:'' }}" placeholder="Search here..." class="top-bar-search-input" id="global-search-field">
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Profile / Right items -->
+                <div class="top-bar-right">
+                    <div class="notification-bell" id="btn-notifications">
+                        <i class="fa-regular fa-bell" style="font-size: 1.15rem; color: var(--text-secondary);"></i>
+                        <div class="notification-dot"></div>
+                    </div>
+                    
+                    <div class="user-profile" id="user-profile-dropdown" style="margin-right: 0.5rem;">
+                        {% if request.user.is_authenticated %}
+                            <div style="background-color: #0b4a7d; color: #ffffff; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; border: 2px solid var(--border-color); font-size: 0.9rem; text-transform: uppercase;">
+                                {{ request.user.username|slice:":2" }}
+                            </div>
+                            <div class="user-info">
+                                <span class="user-name">
+                                    {% if request.user.get_full_name %}
+                                        {{ request.user.get_full_name }}
+                                    {% else %}
+                                        {{ request.user.username }}
+                                    {% endif %}
+                                </span>
+                                <span class="user-email">{{ request.user.email|default:"operador@mecanic.com.br" }}</span>
+                            </div>
+                        {% else %}
+                            <div style="background-color: #0b4a7d; color: #ffffff; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; border: 2px solid var(--border-color); font-size: 0.9rem;">
+                                OP
+                            </div>
+                            <div class="user-info">
+                                <span class="user-name">Operador Mecanic</span>
+                                <span class="user-email">operador@mecanic.com.br</span>
+                            </div>
+                        {% endif %}
+                    </div>
+ 
+                    {% if request.user.is_authenticated %}
+                        <form method="post" action="{% url 'logout' %}" style="margin: 0; display: inline-flex; align-items: center;" id="logout-form">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-secondary btn-sm" id="btn-logout" style="padding: 0.45rem 0.75rem; font-size: 0.78rem; font-weight: 600; border-radius: 4px; display: inline-flex; align-items: center; gap: 0.35rem; border-color: var(--border-color); color: var(--text-secondary); background: #ffffff; cursor: pointer;">
+                                <i class="fa-solid fa-right-from-bracket" style="font-size: 0.8rem; color: var(--text-muted);"></i> Sair
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            </header>
+            
+            <!-- Viewport Workspace content -->
+            <main class="content-wrapper">
+                <!-- Django global messages -->
+                {% if messages %}
+                    <div class="messages-container" style="margin-bottom: 1.5rem;">
+                        {% for message in messages %}
+                            <div class="alert-box {% if message.tags %}alert-{{ message.tags }}{% endif %}" role="alert">
+                                {% if message.tags == 'success' %}
+                                    <strong><i class="fa-solid fa-circle-check" style="margin-right: 0.25rem;"></i> Sucesso!</strong> 
+                                {% elif message.tags == 'warning' %}
+                                    <strong><i class="fa-solid fa-triangle-exclamation" style="margin-right: 0.25rem;"></i> Atenção:</strong> 
+                                {% elif message.tags == 'error' or message.tags == 'danger' %}
+                                    <strong><i class="fa-solid fa-circle-xmark" style="margin-right: 0.25rem;"></i> Erro:</strong> 
+                                {% endif %}
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                
+                {% block content %}
+                {% endblock %}
+            </main>
+        </div>
+    </div>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

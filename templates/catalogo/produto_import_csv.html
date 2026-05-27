@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Importar Peças via CSV - Mecanic AutoPeças{% endblock %}
+{% block module_title %}Importar Peças via CSV{% endblock %}
+
+{% block content %}
+<div class="glass-card" id="import-glass-card" style="max-width: 800px; margin: 2rem auto;">
+    <div class="card-header">
+        <h2 class="card-title"><i class="fa-solid fa-file-csv"></i> Importar Peças via CSV</h2>
+    </div>
+    
+    <!-- Guidelines / Instructions Panel -->
+    <div class="instruction-box" style="margin-bottom: 2rem; background-color: #f7fafc; padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border-color);">
+        <h3 style="margin-bottom: 0.75rem; color: var(--primary); display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fa-solid fa-clipboard-list"></i> Instruções de Importação
+        </h3>
+        <p style="margin-bottom: 1rem; color: var(--text-secondary); line-height: 1.5;">
+            Use esta ferramenta para cadastrar novas autopeças ou atualizar o estoque e preço de itens existentes em lote.
+        </p>
+        <ul style="margin-left: 1.5rem; margin-bottom: 1.5rem; line-height: 1.7; color: var(--text-secondary);">
+            <li>O arquivo deve ser obrigatoriamente do tipo <strong>CSV</strong> (separado por vírgulas ou ponto-e-vírgula).</li>
+            <li>A primeira linha do arquivo deve ser o cabeçalho. As colunas obrigatórias são: <strong>sku</strong> e <strong>nome</strong>.</li>
+            <li>Colunas opcionais recomendadas: <strong>codigo_barras_ean</strong>, <strong>marca</strong>, <strong>ncm</strong>, <strong>preco_venda</strong> e <strong>quantidade_estoque</strong>.</li>
+            <li><strong>Importante:</strong> Se o SKU já existir no estoque, a autopeça será atualizada com os novos valores. Se não existir, será criada uma nova.</li>
+        </ul>
+        <div style="border-top: 1px solid var(--border-color); padding-top: 1rem;">
+            <p style="margin-bottom: 0.75rem; font-size: 0.85rem; color: var(--text-muted);">
+                Para garantir que a importação ocorra sem problemas, faça o download do modelo padrão:
+            </p>
+            <a href="{% url 'estoque-importar-csv-modelo' %}" class="btn btn-secondary btn-sm" id="btn-download-template" style="display: inline-flex; align-items: center; gap: 0.4rem;">
+                <i class="fa-solid fa-file-arrow-down"></i> Baixar Planilha Modelo CSV
+            </a>
+        </div>
+    </div>
+
+    <!-- Import Form -->
+    <form method="post" enctype="multipart/form-data" class="form-container" id="import-csv-form">
+        {% csrf_token %}
+        
+        <!-- Form Errors if any -->
+        {% if form.errors %}
+            <div class="alert-box" id="form-error-alert" style="margin-bottom: 1.5rem;">
+                <strong>Atenção:</strong> Por favor, corrija os erros abaixo.
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+        
+        <div class="form-grid" style="grid-template-columns: 1fr;">
+            <!-- File Field -->
+            <div class="form-group" id="group-csv" style="margin-bottom: 1.5rem;">
+                <label for="{{ form.arquivo_csv.id_for_label }}" style="font-weight: 600; margin-bottom: 0.5rem; display: block;">
+                    {{ form.arquivo_csv.label }}
+                </label>
+                {{ form.arquivo_csv }}
+                {% if form.arquivo_csv.help_text %}
+                    <span class="help-text" style="display: block; margin-top: 0.35rem; font-size: 0.8rem; color: var(--text-muted);">
+                        {{ form.arquivo_csv.help_text }}
+                    </span>
+                {% endif %}
+                {{ form.arquivo_csv.errors }}
+            </div>
+        </div>
+        
+        <!-- Form Actions -->
+        <div class="form-actions" style="margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid var(--border-color); padding-top: 1.25rem;">
+            <a href="{% url 'estoque-listar' %}" class="btn btn-secondary" id="btn-cancel-import">
+                Cancelar
+            </a>
+            <button type="submit" class="btn btn-primary" id="btn-submit-import">
+                <i class="fa-solid fa-upload"></i> Importar Autopeças
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

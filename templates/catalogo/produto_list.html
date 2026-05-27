@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Gestão de Estoque - Mecanic AutoPeças{% endblock %}
+
+{% block content %}
+
+<!-- KPI Dashboard Panel -->
+<div class="kpi-container" id="kpi-panel">
+    <div class="kpi-card kpi-total" id="kpi-card-total">
+        <div>
+            <div class="kpi-label">Total de Peças</div>
+            <div class="kpi-value">{{ total_produtos }}</div>
+        </div>
+    </div>
+    
+    <div class="kpi-card kpi-warning" id="kpi-card-warning">
+        <div>
+            <div class="kpi-label">Estoque Baixo (< 5)</div>
+            <div class="kpi-value">{{ estoque_baixo }}</div>
+        </div>
+    </div>
+    
+    <div class="kpi-card kpi-danger" id="kpi-card-danger">
+        <div>
+            <div class="kpi-label">Itens Esgotados</div>
+            <div class="kpi-value">{{ esgotados }}</div>
+        </div>
+    </div>
+    
+    <div class="kpi-card kpi-success" id="kpi-card-valuation">
+        <div>
+            <div class="kpi-label">Valoração Total (R$)</div>
+            <div class="kpi-value">R$ {{ valor_total_estoque|floatformat:2 }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Products Stock Management -->
+<div class="glass-card" id="products-glass-card">
+    <div class="card-header" style="justify-content: flex-end; border-bottom: none; padding-bottom: 0.5rem; margin-bottom: 1.5rem;">
+        <!-- Right Side actions: Import & Add -->
+        <div class="header-actions" style="display: flex; gap: 0.75rem; align-items: center;">
+            <a href="{% url 'estoque-importar-csv' %}" class="btn btn-secondary" id="btn-import-csv" style="border-radius: 6px; padding: 0.5rem 1rem;">
+                <i class="fa-solid fa-file-csv" style="margin-right: 0.25rem;"></i> Importar via CSV
+            </a>
+            <a href="{% url 'estoque-criar' %}" class="btn btn-primary" id="btn-create-product" style="border-radius: 6px; padding: 0.5rem 1rem; background-color: var(--sidebar-bg); border-color: var(--sidebar-bg);">
+                <i class="fa-solid fa-circle-plus" style="margin-right: 0.25rem;"></i> Cadastrar Peça
+            </a>
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="table-wrapper">
+        <table class="modern-table" id="products-table">
+            <thead>
+                <tr>
+                    <th>SKU</th>
+                    <th>NOME DA AUTOPEÇA</th>
+                    <th>MARCA</th>
+                    <th>NCM</th>
+                    <th>PREÇO DE VENDA</th>
+                    <th>ESTOQUE</th>
+                    <th>STATUS</th>
+                    <th>AÇÕES</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for produto in produtos %}
+                <tr id="row-product-{{ produto.id }}">
+                    <td class="cell-sku">{{ produto.sku }}</td>
+                    <td class="cell-bold">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="background-color: #e6f0f6; color: var(--sidebar-bg); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0;">
+                                <i class="fa-solid fa-box"></i>
+                            </div>
+                            <div>
+                                <div style="color: var(--text-primary); font-weight: 600;">{{ produto.nome }}</div>
+                                <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 500;">EAN: {{ produto.codigo_barras_ean|default:"-" }}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td>{{ produto.marca }}</td>
+                    <td>{{ produto.ncm }}</td>
+                    <td class="cell-bold">R$ {{ produto.preco_venda|floatformat:2 }}</td>
+                    <td class="cell-bold">{{ produto.quantidade_estoque }}</td>
+                    <td>
+                        {% if produto.quantidade_estoque >= 5 %}
+                            <span class="badge-stock stock-ok">
+                                <i class="fa-solid fa-circle-check" style="font-size: 0.75rem; margin-right: 0.25rem;"></i> Ok
+                            </span>
+                        {% elif produto.quantidade_estoque > 0 %}
+                            <span class="badge-stock stock-low">
+                                <i class="fa-solid fa-triangle-exclamation" style="font-size: 0.75rem; margin-right: 0.25rem;"></i> Baixo
+                            </span>
+                        {% else %}
+                            <span class="badge-stock stock-out">
+                                <i class="fa-solid fa-triangle-exclamation" style="font-size: 0.75rem; margin-right: 0.25rem;"></i> Esgotado
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="actions-cell">
+                            <a href="{% url 'estoque-editar' produto.id %}" class="btn btn-secondary btn-sm" id="btn-edit-{{ produto.id }}">
+                                <i class="fa-solid fa-pen-to-square"></i> Editar
+                            </a>
+                            <a href="{% url 'estoque-excluir' produto.id %}" class="btn btn-danger btn-sm" id="btn-delete-{{ produto.id }}">
+                                <i class="fa-solid fa-trash-can"></i> Excluir
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8">
+                        <div class="empty-state">
+                            <i class="fa-solid fa-box-open" style="font-size: 2.5rem; margin-bottom: 0.75rem; display: block; color: var(--text-muted);"></i>
+                            <p>Nenhuma autopeça cadastrada ou encontrada para a busca realizada.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modern Pagination -->
+    {% if is_paginated %}
+    <div class="pagination-modern" id="pagination-controls-modern">
+        <div class="pagination-modern-links">
+            {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}" class="pagination-modern-link">&lt;</a>
+            {% else %}
+                <span class="pagination-modern-link disabled">&lt;</span>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <span class="pagination-modern-link active">{{ num }}</span>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <a href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}" class="pagination-modern-link">{{ num }}</a>
+                {% elif num == 1 or num == page_obj.paginator.num_pages %}
+                    {% if num == 1 and page_obj.number > 4 %}
+                        <a href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}" class="pagination-modern-link">{{ num }}</a>
+                        <span class="pagination-modern-link disabled">...</span>
+                    {% elif num == page_obj.paginator.num_pages and page_obj.number < page_obj.paginator.num_pages|add:'-3' %}
+                        <span class="pagination-modern-link disabled">...</span>
+                        <a href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}" class="pagination-modern-link">{{ num }}</a>
+                    {% else %}
+                        <a href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}" class="pagination-modern-link">{{ num }}</a>
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}" class="pagination-modern-link">&gt;</a>
+            {% else %}
+                <span class="pagination-modern-link disabled">&gt;</span>
+            {% endif %}
+        </div>
+
+        <div class="pagination-modern-select-wrapper">
+            <span>Showing</span>
+            <select class="pagination-modern-select" id="page-size-selector">
+                <option value="10" selected>10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+            </select>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

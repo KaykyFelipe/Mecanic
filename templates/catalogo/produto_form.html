@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ titulo }} - Mecanic AutoPeças{% endblock %}
+{% block module_title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="glass-card" id="form-glass-card" style="max-width: 800px; margin: 2rem auto;">
+    <div class="card-header">
+        <h2 class="card-title"><i class="fa-solid fa-file-signature"></i> {{ titulo }}</h2>
+    </div>
+    
+    <form method="post" class="form-container" id="product-form">
+        {% csrf_token %}
+        
+        <!-- Form Errors if any -->
+        {% if form.errors %}
+            <div class="alert-box" id="form-error-alert">
+                <strong>Atenção:</strong> Por favor, corrija os erros abaixo.
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+        
+        <div class="form-grid">
+            <!-- SKU -->
+            <div class="form-group" id="group-sku">
+                <label for="{{ form.sku.id_for_label }}">{{ form.sku.label }}</label>
+                {{ form.sku }}
+                {% if form.sku.help_text %}
+                    <span class="help-text">{{ form.sku.help_text }}</span>
+                {% endif %}
+                {{ form.sku.errors }}
+            </div>
+            
+            <!-- Nome -->
+            <div class="form-group full-width" id="group-nome">
+                <label for="{{ form.nome.id_for_label }}">{{ form.nome.label }}</label>
+                {{ form.nome }}
+                {% if form.nome.help_text %}
+                    <span class="help-text">{{ form.nome.help_text }}</span>
+                {% endif %}
+                {{ form.nome.errors }}
+            </div>
+
+            <!-- Código EAN -->
+            <div class="form-group" id="group-ean">
+                <label for="{{ form.codigo_barras_ean.id_for_label }}">{{ form.codigo_barras_ean.label }}</label>
+                {{ form.codigo_barras_ean }}
+                {% if form.codigo_barras_ean.help_text %}
+                    <span class="help-text">{{ form.codigo_barras_ean.help_text }}</span>
+                {% endif %}
+                {{ form.codigo_barras_ean.errors }}
+            </div>
+
+            <!-- Marca -->
+            <div class="form-group" id="group-marca">
+                <label for="{{ form.marca.id_for_label }}">{{ form.marca.label }}</label>
+                {{ form.marca }}
+                {% if form.marca.help_text %}
+                    <span class="help-text">{{ form.marca.help_text }}</span>
+                {% endif %}
+                {{ form.marca.errors }}
+            </div>
+
+            <!-- NCM -->
+            <div class="form-group" id="group-ncm">
+                <label for="{{ form.ncm.id_for_label }}">{{ form.ncm.label }}</label>
+                {{ form.ncm }}
+                {% if form.ncm.help_text %}
+                    <span class="help-text">{{ form.ncm.help_text }}</span>
+                {% endif %}
+                {{ form.ncm.errors }}
+            </div>
+
+            <!-- Preço de Venda -->
+            <div class="form-group" id="group-price">
+                <label for="{{ form.preco_venda.id_for_label }}">{{ form.preco_venda.label }}</label>
+                {{ form.preco_venda }}
+                {% if form.preco_venda.help_text %}
+                    <span class="help-text">{{ form.preco_venda.help_text }}</span>
+                {% endif %}
+                {{ form.preco_venda.errors }}
+            </div>
+
+            <!-- Estoque -->
+            <div class="form-group" id="group-stock">
+                <label for="{{ form.quantidade_estoque.id_for_label }}">{{ form.quantidade_estoque.label }}</label>
+                {{ form.quantidade_estoque }}
+                {% if form.quantidade_estoque.help_text %}
+                    <span class="help-text">{{ form.quantidade_estoque.help_text }}</span>
+                {% endif %}
+                {{ form.quantidade_estoque.errors }}
+            </div>
+        </div>
+        
+        <!-- Form Actions -->
+        <div class="form-actions">
+            <a href="{% url 'estoque-listar' %}" class="btn btn-secondary" id="btn-cancel-form">
+                Cancelar
+            </a>
+            <button type="submit" class="btn btn-primary" id="btn-submit-form">
+                {{ botao_label }}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

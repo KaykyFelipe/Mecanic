@@ -1,0 +1,77 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acesso Restrito - Mecanic AutoPeças</title>
+    
+    <!-- Premium Stylesheet -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    
+    <!-- FontAwesome v6 Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Font -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+</head>
+<body class="login-page">
+
+    <div class="login-card-wrapper">
+        <div class="login-card">
+            <!-- Brand Logo -->
+            <h1 class="login-logo" id="login-brand-display">
+                <i class="fa-solid fa-screwdriver-wrench" style="color: var(--sidebar-active-bg); margin-right: 0.35rem;"></i> ERP <span>Mecanic</span>
+            </h1>
+            
+            <p class="login-subtitle">
+                Acesse o painel de gerenciamento de estoque com suas credenciais administrativas seguras.
+            </p>
+            
+            <!-- Login Form -->
+            <form method="post" id="login-form">
+                {% csrf_token %}
+                
+                <!-- Next Redirect URL helper -->
+                <input type="hidden" name="next" value="{{ next|default:'' }}" />
+                
+                <!-- Form Errors if invalid credentials -->
+                {% if form.errors %}
+                    <div class="alert-box alert-danger" id="login-error-alert" style="margin-bottom: 1.5rem; padding: 0.85rem; border-radius: 8px; font-size: 0.82rem;">
+                        <strong><i class="fa-solid fa-triangle-exclamation" style="margin-right: 0.25rem;"></i> Atenção:</strong> Usuário ou senha incorretos.
+                    </div>
+                {% endif %}
+                
+                <!-- Username -->
+                <div class="login-form-group" id="group-login-username">
+                    <label for="id_username">Usuário</label>
+                    <div class="login-input-wrapper">
+                        <span class="login-input-icon"><i class="fa-solid fa-user"></i></span>
+                        <input type="text" name="username" autofocus required placeholder="Digite seu usuário..." class="login-input" id="id_username" autocomplete="username">
+                    </div>
+                </div>
+                
+                <!-- Password -->
+                <div class="login-form-group" id="group-login-password">
+                    <label for="id_password">Senha</label>
+                    <div class="login-input-wrapper">
+                        <span class="login-input-icon"><i class="fa-solid fa-key"></i></span>
+                        <input type="password" name="password" required placeholder="Digite sua senha..." class="login-input" id="id_password" autocomplete="current-password">
+                    </div>
+                </div>
+                
+                <!-- Action Button -->
+                <button type="submit" class="btn-login" id="btn-login-submit">
+                    <i class="fa-solid fa-arrow-right-to-bracket" style="margin-right: 0.4rem;"></i> Acessar Sistema
+                </button>
+            </form>
+            
+            <!-- Footer -->
+            <div class="login-footer">
+                &copy; 2026 Mecanic AutoPeças. Todos os direitos reservados.
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
