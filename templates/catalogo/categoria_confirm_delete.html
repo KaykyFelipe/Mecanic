@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Confirmar Exclusão - Mecanic AutoPeças{% endblock %}
+{% block module_title %}Confirmar Exclusão{% endblock %}
+
+{% block content %}
+<div class="glass-card" id="delete-confirm-glass-card" style="max-width: 600px; margin: 3rem auto; border-color: var(--danger-border);">
+    <div class="card-header" style="border-bottom: none; margin-bottom: 0.5rem;">
+        <h2 class="card-title" style="color: var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Excluir Categoria?</h2>
+    </div>
+    
+    <div style="padding: 0 0.5rem;">
+        <div class="alert-box alert-danger" style="margin-bottom: 1.5rem;">
+            Tem certeza que deseja excluir permanentemente a categoria <strong>"{{ object.nome }}"</strong>? Esta ação não poderá ser desfeita.
+        </div>
+
+        <!-- Warn about subcategories cascade delete -->
+        {% if object.children.all %}
+            <div style="margin-bottom: 1.5rem; background: #fffaf0; border: 1px solid #fbd38d; padding: 1rem; border-radius: 8px;">
+                <h4 style="color: #dd6b20; margin-bottom: 0.5rem;"><i class="fa-solid fa-sitemap"></i> Subcategorias Afetadas:</h4>
+                <p style="font-size: 0.85rem; color: #744210; margin-bottom: 0.5rem; line-height: 1.4;">
+                    As seguintes subcategorias dependem desta categoria e serão <strong>excluídas permanentemente</strong> em cascata:
+                </p>
+                <ul style="font-size: 0.82rem; color: #744210; padding-left: 1.25rem;">
+                    {% for sub in object.children.all %}
+                        <li><strong>{{ sub.nome }}</strong> (ID: {{ sub.id }})</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+
+        <!-- Warn about products linked to this category -->
+        {% if object.produtos.all %}
+            <div style="margin-bottom: 1.5rem; background: #f7fafc; border: 1px solid #cbd5e0; padding: 1rem; border-radius: 8px;">
+                <h4 style="color: var(--text-secondary); margin-bottom: 0.5rem;"><i class="fa-solid fa-box"></i> Peças Vinculadas:</h4>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem; line-height: 1.4;">
+                    Os seguintes produtos terão a sua categoria definida como <strong>Nenhuma (Unlinked)</strong>:
+                </p>
+                <ul style="font-size: 0.82rem; color: var(--text-secondary); padding-left: 1.25rem; max-height: 120px; overflow-y: auto;">
+                    {% for prod in object.produtos.all %}
+                        <li><strong>{{ prod.sku }}</strong> - {{ prod.nome }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+
+        <form method="post" style="margin: 0;">
+            {% csrf_token %}
+            <div class="form-actions" style="border-top: 1px solid var(--border-color); padding-top: 1.25rem; margin-top: 1rem;">
+                <a href="{% url 'categoria-listar' %}" class="btn btn-secondary" id="btn-cancel-delete">
+                    Cancelar
+                </a>
+                <button type="submit" class="btn btn-danger" id="btn-confirm-delete">
+                    <i class="fa-solid fa-trash-can"></i> Sim, Excluir Categoria
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

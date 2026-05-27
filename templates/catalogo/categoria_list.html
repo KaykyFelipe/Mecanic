@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Gerenciar Categorias - Mecanic AutoPeças{% endblock %}
+{% block module_title %}Gerenciar Categorias{% endblock %}
+
+{% block content %}
+<div class="glass-card" id="categories-glass-card">
+    <div class="card-header" style="justify-content: space-between; align-items: center; border-bottom: none; padding-bottom: 0.5rem; margin-bottom: 1.5rem;">
+        <h2 class="card-title"><i class="fa-solid fa-folder-tree"></i> Árvore de Categorias</h2>
+        <!-- Header actions: Add new category and return to products -->
+        <div class="header-actions" style="display: flex; gap: 0.75rem; align-items: center;">
+            <a href="{% url 'estoque-listar' %}" class="btn btn-secondary" id="btn-back-to-products" style="border-radius: 6px; padding: 0.5rem 1rem;">
+                <i class="fa-solid fa-arrow-left" style="margin-right: 0.25rem;"></i> Voltar ao Estoque
+            </a>
+            <a href="{% url 'categoria-criar' %}" class="btn btn-primary" id="btn-create-category" style="border-radius: 6px; padding: 0.5rem 1rem; background-color: var(--sidebar-bg); border-color: var(--sidebar-bg);">
+                <i class="fa-solid fa-folder-plus" style="margin-right: 0.25rem;"></i> Nova Categoria
+            </a>
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="table-wrapper">
+        <table class="modern-table" id="categories-table">
+            <thead>
+                <tr>
+                    <th style="width: 80px; text-align: center;">ID</th>
+                    <th>NOME DA CATEGORIA (HIERARQUIA)</th>
+                    <th>CATEGORIA PAI</th>
+                    <th style="width: 240px; text-align: center;">AÇÕES</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cat in categorias %}
+                <tr id="row-category-{{ cat.id }}">
+                    <td style="text-align: center;" class="cell-sku">{{ cat.id }}</td>
+                    <td class="cell-bold">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="background-color: #e6f0f6; color: var(--sidebar-bg); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0;">
+                                <i class="fa-solid fa-folder"></i>
+                            </div>
+                            <div>
+                                <span style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary);">{{ cat.nome }}</span>
+                                {% if cat.parent %}
+                                    <br>
+                                    <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">Caminho: {{ cat }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        {% if cat.parent %}
+                            <span class="badge-stock stock-ok" style="font-weight: 600; font-size: 0.75rem; color: var(--primary); border-color: var(--border-color); background: rgba(9, 60, 102, 0.05);">
+                                <i class="fa-solid fa-level-up fa-rotate-90" style="margin-right: 0.25rem;"></i> {{ cat.parent.nome }}
+                            </span>
+                        {% else %}
+                            <span style="color: var(--text-muted); font-style: italic; font-size: 0.82rem;">Nenhuma (Principal)</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="actions-cell" style="justify-content: center;">
+                            <a href="{% url 'categoria-editar' cat.id %}" class="btn btn-secondary btn-sm" id="btn-edit-cat-{{ cat.id }}">
+                                <i class="fa-solid fa-pen-to-square"></i> Editar
+                            </a>
+                            <a href="{% url 'categoria-excluir' cat.id %}" class="btn btn-danger btn-sm" id="btn-delete-cat-{{ cat.id }}">
+                                <i class="fa-solid fa-trash-can"></i> Excluir
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4">
+                        <div class="empty-state">
+                            <i class="fa-solid fa-folder-open" style="font-size: 2.5rem; margin-bottom: 0.75rem; display: block; color: var(--text-muted);"></i>
+                            <p>Nenhuma categoria cadastrada.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

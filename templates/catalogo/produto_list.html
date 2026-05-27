@@ -39,10 +39,16 @@
 <!-- Main Products Stock Management -->
 <div class="glass-card" id="products-glass-card">
     <div class="card-header" style="justify-content: flex-end; border-bottom: none; padding-bottom: 0.5rem; margin-bottom: 1.5rem;">
-        <!-- Right Side actions: Import & Add -->
+        <!-- Right Side actions: Entry, Import, Categories & Add -->
         <div class="header-actions" style="display: flex; gap: 0.75rem; align-items: center;">
+            <a href="{% url 'estoque-entrada' %}" class="btn btn-secondary" id="btn-stock-entry" style="border-radius: 6px; padding: 0.5rem 1rem;">
+                <i class="fa-solid fa-truck-ramp-box" style="margin-right: 0.25rem;"></i> Registrar Entrada
+            </a>
             <a href="{% url 'estoque-importar-csv' %}" class="btn btn-secondary" id="btn-import-csv" style="border-radius: 6px; padding: 0.5rem 1rem;">
                 <i class="fa-solid fa-file-csv" style="margin-right: 0.25rem;"></i> Importar via CSV
+            </a>
+            <a href="{% url 'categoria-listar' %}" class="btn btn-secondary" id="btn-manage-categories" style="border-radius: 6px; padding: 0.5rem 1rem;">
+                <i class="fa-solid fa-folder-tree" style="margin-right: 0.25rem;"></i> Categorias
             </a>
             <a href="{% url 'estoque-criar' %}" class="btn btn-primary" id="btn-create-product" style="border-radius: 6px; padding: 0.5rem 1rem; background-color: var(--sidebar-bg); border-color: var(--sidebar-bg);">
                 <i class="fa-solid fa-circle-plus" style="margin-right: 0.25rem;"></i> Cadastrar Peça
@@ -50,86 +56,211 @@
         </div>
     </div>
 
-    <!-- Data Table -->
-    <div class="table-wrapper">
-        <table class="modern-table" id="products-table">
-            <thead>
-                <tr>
-                    <th>SKU</th>
-                    <th>NOME DA AUTOPEÇA</th>
-                    <th>MARCA</th>
-                    <th>NCM</th>
-                    <th>PREÇO DE VENDA</th>
-                    <th>ESTOQUE</th>
-                    <th>STATUS</th>
-                    <th>AÇÕES</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for produto in produtos %}
-                <tr id="row-product-{{ produto.id }}">
-                    <td class="cell-sku">{{ produto.sku }}</td>
-                    <td class="cell-bold">
-                        <div style="display: flex; align-items: center; gap: 0.75rem;">
-                            <div style="background-color: #e6f0f6; color: var(--sidebar-bg); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0;">
-                                <i class="fa-solid fa-box"></i>
-                            </div>
-                            <div>
-                                <div style="color: var(--text-primary); font-weight: 600;">{{ produto.nome }}</div>
-                                <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 500;">EAN: {{ produto.codigo_barras_ean|default:"-" }}</span>
-                            </div>
-                        </div>
-                    </td>
-                    <td>{{ produto.marca }}</td>
-                    <td>{{ produto.ncm }}</td>
-                    <td class="cell-bold">R$ {{ produto.preco_venda|floatformat:2 }}</td>
-                    <td class="cell-bold">{{ produto.quantidade_estoque }}</td>
-                    <td>
-                        {% if produto.quantidade_estoque >= 5 %}
-                            <span class="badge-stock stock-ok">
-                                <i class="fa-solid fa-circle-check" style="font-size: 0.75rem; margin-right: 0.25rem;"></i> Ok
-                            </span>
-                        {% elif produto.quantidade_estoque > 0 %}
-                            <span class="badge-stock stock-low">
-                                <i class="fa-solid fa-triangle-exclamation" style="font-size: 0.75rem; margin-right: 0.25rem;"></i> Baixo
-                            </span>
-                        {% else %}
-                            <span class="badge-stock stock-out">
-                                <i class="fa-solid fa-triangle-exclamation" style="font-size: 0.75rem; margin-right: 0.25rem;"></i> Esgotado
-                            </span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <div class="actions-cell">
-                            <a href="{% url 'estoque-editar' produto.id %}" class="btn btn-secondary btn-sm" id="btn-edit-{{ produto.id }}">
-                                <i class="fa-solid fa-pen-to-square"></i> Editar
-                            </a>
-                            <a href="{% url 'estoque-excluir' produto.id %}" class="btn btn-danger btn-sm" id="btn-delete-{{ produto.id }}">
-                                <i class="fa-solid fa-trash-can"></i> Excluir
-                            </a>
-                        </div>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="8">
-                        <div class="empty-state">
-                            <i class="fa-solid fa-box-open" style="font-size: 2.5rem; margin-bottom: 0.75rem; display: block; color: var(--text-muted);"></i>
-                            <p>Nenhuma autopeça cadastrada ou encontrada para a busca realizada.</p>
-                        </div>
-                    </td>
-                </tr>
+    <!-- Dynamic Filters Bar (Startup Standard) -->
+    <div class="filters-bar" id="filters-container">
+        <div class="filters-group">
+            <span class="filter-label"><i class="fa-solid fa-filter"></i> Status de Estoque:</span>
+            <a href="?{% if q %}q={{ q }}&{% endif %}{% if marca_filter %}marca={{ marca_filter }}&{% endif %}{% if categoria_filter %}categoria={{ categoria_filter }}&{% endif %}{% if compat_marca_filter %}compat_marca={{ compat_marca_filter }}&{% endif %}{% if compat_modelo_filter %}compat_modelo={{ compat_modelo_filter }}&{% endif %}{% if compat_ano_filter %}compat_ano={{ compat_ano_filter }}&{% endif %}" class="filter-status-btn {% if not status_filter %}active{% endif %}">
+                Tudo
+            </a>
+            <a href="?status=ok{% if q %}&q={{ q }}{% endif %}{% if marca_filter %}&marca={{ marca_filter }}{% endif %}{% if categoria_filter %}&categoria={{ categoria_filter }}{% endif %}" class="filter-status-btn {% if status_filter == 'ok' %}active{% endif %}">
+                Estoque Ok
+            </a>
+            <a href="?status=low{% if q %}&q={{ q }}{% endif %}{% if marca_filter %}&marca={{ marca_filter }}{% endif %}{% if categoria_filter %}&categoria={{ categoria_filter }}{% endif %}" class="filter-status-btn {% if status_filter == 'low' %}active{% endif %}">
+                Estoque Baixo
+            </a>
+            <a href="?status=out{% if q %}&q={{ q }}{% endif %}{% if marca_filter %}&marca={{ marca_filter }}{% endif %}{% if categoria_filter %}&categoria={{ categoria_filter }}{% endif %}" class="filter-status-btn {% if status_filter == 'out' %}active{% endif %}">
+                Esgotados
+            </a>
+        </div>
+        
+        <div class="filters-group">
+            <span class="filter-label"><i class="fa-solid fa-tags"></i> Marca:</span>
+            <select class="filter-select" id="filter-marca-select" onchange="filterByMarca(this.value)">
+                <option value="">Todas as Marcas</option>
+                {% for m in marcas %}
+                    <option value="{{ m }}" {% if marca_filter == m %}selected{% endif %}>{{ m }}</option>
                 {% endfor %}
-            </tbody>
-        </table>
+            </select>
+
+            <span class="filter-label" style="margin-left: 0.5rem;"><i class="fa-solid fa-folder-tree"></i> Categoria:</span>
+            <select class="filter-select" id="filter-categoria-select" onchange="filterByCategoria(this.value)">
+                <option value="">Todas as Categorias</option>
+                {% for cat in categorias %}
+                    <option value="{{ cat.id }}" {% if categoria_filter == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat }}</option>
+                {% endfor %}
+            </select>
+
+            <span class="filter-label" style="margin-left: 0.5rem;"><i class="fa-solid fa-car"></i> Veículo:</span>
+            <div class="vehicle-filter-wrapper" style="position: relative; display: inline-block;">
+                <button type="button" class="filter-status-btn {% if compat_marca_filter %}active{% endif %}" id="btn-vehicle-filter-toggle" style="border-radius: 6px; padding: 0.35rem 0.75rem; display: flex; align-items: center; gap: 0.35rem;">
+                    {% if compat_marca_filter %}
+                        🚗 {{ compat_marca_filter }}{% if compat_modelo_filter %} {{ compat_modelo_filter }}{% endif %}{% if compat_ano_filter and compat_ano_filter != 'Todos os anos' %} ({{ compat_ano_filter }}){% endif %}
+                    {% else %}
+                        Filtrar por Veículo
+                    {% endif %}
+                </button>
+                
+                <!-- Floating Mini Selector Form -->
+                <div class="vehicle-filter-popover" id="vehicle-filter-popover" style="display: none; position: absolute; top: 110%; right: 0; background: #ffffff; border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); z-index: 100; min-width: 280px; flex-direction: column; gap: 0.75rem; text-align: left;">
+                    <div style="font-weight: 700; font-size: 0.8rem; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 0.4rem; margin-bottom: 0.25rem;">
+                        🚗 Selecionar Veículo (FIPE)
+                    </div>
+                    <div class="form-group" style="gap: 0.2rem; display: flex; flex-direction: column;">
+                        <label style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Marca</label>
+                        <select id="filter-v-marca" class="form-control" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; height: 32px;">
+                            <option value="">Selecione a Marca</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="gap: 0.2rem; display: flex; flex-direction: column;">
+                        <label style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Modelo</label>
+                        <select id="filter-v-modelo" class="form-control" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; height: 32px;" disabled>
+                            <option value="">Selecione o Modelo</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="gap: 0.2rem; display: flex; flex-direction: column;">
+                        <label style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Ano / Versão</label>
+                        <select id="filter-v-ano" class="form-control" style="padding: 0.35rem 0.5rem; font-size: 0.8rem; height: 32px;" disabled>
+                            <option value="">Selecione o Ano</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                        <button type="button" id="btn-vehicle-filter-clear" class="btn btn-secondary btn-sm" style="flex: 1; font-size: 0.75rem; padding: 0.35rem;">Limpar</button>
+                        <button type="button" id="btn-vehicle-filter-submit" class="btn btn-primary btn-sm" style="flex: 1; font-size: 0.75rem; padding: 0.35rem; background-color: var(--sidebar-bg); border-color: var(--sidebar-bg);" disabled>Filtrar</button>
+                    </div>
+                </div>
+            </div>
+            
+            {% if q or status_filter or marca_filter or categoria_filter or compat_marca_filter or compat_modelo_filter or compat_ano_filter %}
+                <a href="{% url 'estoque-listar' %}" class="filter-clear-btn" style="margin-left: 0.5rem;">
+                    <i class="fa-solid fa-filter-circle-xmark"></i> Limpar Filtros
+                </a>
+            {% endif %}
+        </div>
     </div>
+
+    <!-- Bulk Actions Form -->
+    <form method="post" action="{% url 'estoque-acoes-lote' %}" id="bulk-actions-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" id="bulk-action-input" value="">
+        
+        <!-- Data Table -->
+        <div class="table-wrapper">
+            <table class="modern-table" id="products-table">
+                <thead>
+                    <tr>
+                        <th class="td-checkbox"><input type="checkbox" class="checkbox-modern" id="select-all-checkbox"></th>
+                        <th>SKU</th>
+                        <th>NOME DA AUTOPEÇA</th>
+                        <th>MARCA</th>
+                        <th>NCM</th>
+                        <th>PREÇO CUSTO</th>
+                        <th>PREÇO VENDA</th>
+                        <th>MARGEM</th>
+                        <th>ESTOQUE</th>
+                        <th>STATUS</th>
+                        <th>AÇÕES</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for produto in produtos %}
+                    <tr id="row-product-{{ produto.id }}">
+                        <td class="td-checkbox">
+                            <input type="checkbox" name="selected_products" value="{{ produto.id }}" class="checkbox-modern product-checkbox">
+                        </td>
+                        <td class="cell-sku">{{ produto.sku }}</td>
+                        <td class="cell-bold">
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <div style="background-color: #e6f0f6; color: var(--sidebar-bg); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0;">
+                                    <i class="fa-solid fa-box"></i>
+                                </div>
+                                <div>
+                                    <a href="#" class="product-name-link" 
+                                       data-id="{{ produto.id }}" 
+                                       data-sku="{{ produto.sku }}" 
+                                       data-nome="{{ produto.nome }}" 
+                                       data-ean="{{ produto.codigo_barras_ean|default:'-' }}"
+                                       data-marca="{{ produto.marca }}" 
+                                       data-ncm="{{ produto.ncm }}" 
+                                       data-custo="{{ produto.preco_custo|default:0|floatformat:2 }}" 
+                                       data-venda="{{ produto.preco_venda|floatformat:2 }}" 
+                                       data-estoque="{{ produto.quantidade_estoque }}"
+                                       style="color: var(--text-primary); font-weight: 600; cursor: pointer; text-decoration: underline; text-decoration-style: dotted;"
+                                       title="Clique para detalhes rápidos">
+                                        {{ produto.nome }}
+                                    </a>
+                                    <br>
+                                    <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 500;">EAN: {{ produto.codigo_barras_ean|default:"-" }}</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ produto.marca }}</td>
+                        <td>{{ produto.ncm }}</td>
+                        <td class="cell-bold" style="color: var(--text-secondary);">R$ {{ produto.preco_custo|default:0|floatformat:2 }}</td>
+                        <td class="cell-bold">R$ {{ produto.preco_venda|floatformat:2 }}</td>
+                        <td>
+                            {% if produto.margem_lucro >= 30 %}
+                                <span class="badge-margin margin-high" title="Alta Margem de Lucro">
+                                    <i class="fa-solid fa-arrow-trend-up"></i> {{ produto.margem_lucro|floatformat:0 }}%
+                                </span>
+                            {% elif produto.margem_lucro >= 15 %}
+                                <span class="badge-margin margin-medium" title="Margem de Lucro Aceitável">
+                                    <i class="fa-solid fa-minus"></i> {{ produto.margem_lucro|floatformat:0 }}%
+                                </span>
+                            {% else %}
+                                <span class="badge-margin margin-low" title="Baixa Margem de Lucro">
+                                    <i class="fa-solid fa-arrow-trend-down"></i> {{ produto.margem_lucro|floatformat:0 }}%
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="cell-bold">{{ produto.quantidade_estoque }}</td>
+                        <td>
+                            {% if produto.quantidade_estoque >= 5 %}
+                                <span class="badge-stock stock-ok">
+                                    <i class="fa-solid fa-circle-check" style="font-size: 0.75rem; margin-right: 0.25rem;"></i> Ok
+                                </span>
+                            {% elif produto.quantidade_estoque > 0 %}
+                                <span class="badge-stock stock-low">
+                                    <i class="fa-solid fa-triangle-exclamation" style="font-size: 0.75rem; margin-right: 0.25rem;"></i> Baixo
+                                </span>
+                            {% else %}
+                                <span class="badge-stock stock-out">
+                                    <i class="fa-solid fa-triangle-exclamation" style="font-size: 0.75rem; margin-right: 0.25rem;"></i> Esgotado
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="actions-cell">
+                                <a href="{% url 'estoque-editar' produto.id %}" class="btn btn-secondary btn-sm" id="btn-edit-{{ produto.id }}">
+                                    <i class="fa-solid fa-pen-to-square"></i> Editar
+                                </a>
+                                <a href="{% url 'estoque-excluir' produto.id %}" class="btn btn-danger btn-sm" id="btn-delete-{{ produto.id }}">
+                                    <i class="fa-solid fa-trash-can"></i> Excluir
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="11">
+                            <div class="empty-state">
+                                <i class="fa-solid fa-box-open" style="font-size: 2.5rem; margin-bottom: 0.75rem; display: block; color: var(--text-muted);"></i>
+                                <p>Nenhuma autopeça cadastrada ou encontrada para a busca / filtros aplicados.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </form>
 
     <!-- Modern Pagination -->
     {% if is_paginated %}
-    <div class="pagination-modern" id="pagination-controls-modern">
+    <div class="pagination-modern" id="pagination-controls-modern" style="margin-top: 1.5rem;">
         <div class="pagination-modern-links">
             {% if page_obj.has_previous %}
-                <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}" class="pagination-modern-link">&lt;</a>
+                <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if marca_filter %}&marca={{ marca_filter }}{% endif %}{% if categoria_filter %}&categoria={{ categoria_filter }}{% endif %}{% if compat_marca_filter %}&compat_marca={{ compat_marca_filter }}{% endif %}{% if compat_modelo_filter %}&compat_modelo={{ compat_modelo_filter }}{% endif %}{% if compat_ano_filter %}&compat_ano={{ compat_ano_filter }}{% endif %}" class="pagination-modern-link">&lt;</a>
             {% else %}
                 <span class="pagination-modern-link disabled">&lt;</span>
             {% endif %}
@@ -138,37 +269,637 @@
                 {% if page_obj.number == num %}
                     <span class="pagination-modern-link active">{{ num }}</span>
                 {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                    <a href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}" class="pagination-modern-link">{{ num }}</a>
+                    <a href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if marca_filter %}&marca={{ marca_filter }}{% endif %}{% if categoria_filter %}&categoria={{ categoria_filter }}{% endif %}{% if compat_marca_filter %}&compat_marca={{ compat_marca_filter }}{% endif %}{% if compat_modelo_filter %}&compat_modelo={{ compat_modelo_filter }}{% endif %}{% if compat_ano_filter %}&compat_ano={{ compat_ano_filter }}{% endif %}" class="pagination-modern-link">{{ num }}</a>
                 {% elif num == 1 or num == page_obj.paginator.num_pages %}
                     {% if num == 1 and page_obj.number > 4 %}
-                        <a href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}" class="pagination-modern-link">{{ num }}</a>
+                        <a href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if marca_filter %}&marca={{ marca_filter }}{% endif %}{% if categoria_filter %}&categoria={{ categoria_filter }}{% endif %}{% if compat_marca_filter %}&compat_marca={{ compat_marca_filter }}{% endif %}{% if compat_modelo_filter %}&compat_modelo={{ compat_modelo_filter }}{% endif %}{% if compat_ano_filter %}&compat_ano={{ compat_ano_filter }}{% endif %}" class="pagination-modern-link">{{ num }}</a>
                         <span class="pagination-modern-link disabled">...</span>
                     {% elif num == page_obj.paginator.num_pages and page_obj.number < page_obj.paginator.num_pages|add:'-3' %}
                         <span class="pagination-modern-link disabled">...</span>
-                        <a href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}" class="pagination-modern-link">{{ num }}</a>
+                        <a href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if marca_filter %}&marca={{ marca_filter }}{% endif %}{% if categoria_filter %}&categoria={{ categoria_filter }}{% endif %}{% if compat_marca_filter %}&compat_marca={{ compat_marca_filter }}{% endif %}{% if compat_modelo_filter %}&compat_modelo={{ compat_modelo_filter }}{% endif %}{% if compat_ano_filter %}&compat_ano={{ compat_ano_filter }}{% endif %}" class="pagination-modern-link">{{ num }}</a>
                     {% else %}
-                        <a href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}" class="pagination-modern-link">{{ num }}</a>
+                        <a href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if marca_filter %}&marca={{ marca_filter }}{% endif %}{% if categoria_filter %}&categoria={{ categoria_filter }}{% endif %}{% if compat_marca_filter %}&compat_marca={{ compat_marca_filter }}{% endif %}{% if compat_modelo_filter %}&compat_modelo={{ compat_modelo_filter }}{% endif %}{% if compat_ano_filter %}&compat_ano={{ compat_ano_filter }}{% endif %}" class="pagination-modern-link">{{ num }}</a>
                     {% endif %}
                 {% endif %}
             {% endfor %}
 
             {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}" class="pagination-modern-link">&gt;</a>
+                <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if marca_filter %}&marca={{ marca_filter }}{% endif %}{% if categoria_filter %}&categoria={{ categoria_filter }}{% endif %}{% if compat_marca_filter %}&compat_marca={{ compat_marca_filter }}{% endif %}{% if compat_modelo_filter %}&compat_modelo={{ compat_modelo_filter }}{% endif %}{% if compat_ano_filter %}&compat_ano={{ compat_ano_filter }}{% endif %}" class="pagination-modern-link">&gt;</a>
             {% else %}
                 <span class="pagination-modern-link disabled">&gt;</span>
             {% endif %}
-        </div>
-
-        <div class="pagination-modern-select-wrapper">
-            <span>Showing</span>
-            <select class="pagination-modern-select" id="page-size-selector">
-                <option value="10" selected>10</option>
-                <option value="20">20</option>
-                <option value="50">50</option>
-            </select>
         </div>
     </div>
     {% endif %}
 </div>
 
+<!-- Floating Bulk Actions Bar -->
+<div class="bulk-actions-wrapper" id="bulk-actions-panel">
+    <div class="bulk-selected-count">
+        <span id="bulk-selected-counter">0</span> selecionados
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="triggerBulkAction('print')" id="btn-bulk-print" style="border-radius: 4px; background: #ffffff; color: var(--primary); border-color: var(--border-color);">
+            <i class="fa-solid fa-barcode"></i> Imprimir Etiquetas
+        </button>
+        <button type="button" class="btn btn-danger btn-sm" onclick="triggerBulkAction('delete')" id="btn-bulk-delete" style="border-radius: 4px;">
+            <i class="fa-solid fa-trash-can"></i> Excluir Selecionados
+        </button>
+    </div>
+</div>
+
+<!-- Slide-out Drawer Panel -->
+<div class="drawer-backdrop" id="drawer-backdrop"></div>
+<div class="drawer" id="product-detail-drawer">
+    <div class="drawer-header">
+        <h3 class="drawer-title"><i class="fa-solid fa-circle-info" style="color: var(--sidebar-bg);"></i> Detalhes da Peça</h3>
+        <button type="button" class="drawer-close" id="btn-close-drawer">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>
+    
+    <div class="drawer-content">
+        <!-- Section: Header Info (Always visible at the top) -->
+        <div class="drawer-section" style="margin-bottom: 1rem;">
+            <h4 id="drawer-prod-nome" style="font-size: 1.15rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.25rem;">Nome do Produto</h4>
+            <span id="drawer-prod-sku" style="font-family: monospace; font-size: 0.85rem; font-weight: 600; color: var(--sidebar-bg); background: #e6f0f6; padding: 0.15rem 0.45rem; border-radius: 4px;">SKU</span>
+        </div>
+
+        <!-- Tabs Switcher -->
+        <div class="drawer-tabs">
+            <button type="button" class="drawer-tab-btn active" data-tab="tab-details">
+                <i class="fa-solid fa-circle-info"></i> Detalhes
+            </button>
+            <button type="button" class="drawer-tab-btn" data-tab="tab-compats">
+                <i class="fa-solid fa-car"></i> Compatíveis
+            </button>
+            <button type="button" class="drawer-tab-btn" data-tab="tab-kardex">
+                <i class="fa-solid fa-clipboard-list"></i> Kardex
+            </button>
+        </div>
+        
+        <!-- Tab Pane 1: Detalhes -->
+        <div class="drawer-tab-pane active" id="tab-details">
+            <!-- Section: Values and Stock -->
+            <div class="drawer-section">
+                <div class="drawer-section-title">Valores e Estoque</div>
+                
+                <div class="drawer-kpi-grid">
+                    <div class="drawer-kpi-item">
+                        <div class="drawer-kpi-label">Estoque Atual</div>
+                        <div class="drawer-kpi-value" id="drawer-prod-estoque">0</div>
+                    </div>
+                    <div class="drawer-kpi-item">
+                        <div class="drawer-kpi-label">Margem de Lucro</div>
+                        <div class="drawer-kpi-value" id="drawer-prod-margem">0%</div>
+                    </div>
+                </div>
+                
+                <div class="drawer-field-list">
+                    <div class="drawer-field-row">
+                        <span class="drawer-field-name">Preço de Custo</span>
+                        <span class="drawer-field-value" id="drawer-prod-custo">R$ 0,00</span>
+                    </div>
+                    <div class="drawer-field-row">
+                        <span class="drawer-field-name">Preço de Venda</span>
+                        <span class="drawer-field-value" id="drawer-prod-venda">R$ 0,00</span>
+                    </div>
+                    
+                    <div style="margin-top: 0.5rem;">
+                        <span class="drawer-field-name" style="font-size: 0.78rem;">Rentabilidade</span>
+                        <div class="margin-indicator-bar">
+                            <div class="margin-indicator-fill" id="drawer-margin-bar" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Section: General Specifications -->
+            <div class="drawer-section">
+                <div class="drawer-section-title">Especificações</div>
+                
+                <div class="drawer-field-list">
+                    <div class="drawer-field-row">
+                        <span class="drawer-field-name">Marca</span>
+                        <span class="drawer-field-value" id="drawer-prod-marca">-</span>
+                    </div>
+                    <div class="drawer-field-row">
+                        <span class="drawer-field-name">EAN / Cód. Barras</span>
+                        <span class="drawer-field-value" id="drawer-prod-ean">-</span>
+                    </div>
+                    <div class="drawer-field-row">
+                        <span class="drawer-field-name">Classificação NCM</span>
+                        <span class="drawer-field-value" id="drawer-prod-ncm">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Pane 2: Compatíveis -->
+        <div class="drawer-tab-pane" id="tab-compats">
+            <div class="drawer-section">
+                <div class="drawer-section-title">Veículos Compatíveis</div>
+                <div id="drawer-compat-list" style="display: flex; flex-direction: column; gap: 0.6rem;">
+                    <!-- dynamic content -->
+                </div>
+                <div id="drawer-compat-empty" class="empty-state" style="padding: 1.5rem 0; display: none;">
+                    <p style="font-size: 0.8rem; margin: 0;"><i class="fa-solid fa-car-side" style="display: block; font-size: 1.8rem; margin-bottom: 0.5rem;"></i> Sem compatibilidades vinculadas.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Pane 3: Ficha Kardex -->
+        <div class="drawer-tab-pane" id="tab-kardex">
+            <div class="drawer-section">
+                <div class="drawer-section-title">Ficha Kardex / Auditoria</div>
+                <div class="kardex-list" id="drawer-kardex-list">
+                    <!-- dynamic content -->
+                </div>
+                <div id="drawer-kardex-empty" class="empty-state" style="padding: 1.5rem 0; display: none;">
+                    <p style="font-size: 0.8rem; margin: 0;"><i class="fa-solid fa-timeline" style="display: block; font-size: 1.8rem; margin-bottom: 0.5rem;"></i> Sem movimentações registradas.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="drawer-footer" style="flex-direction: column; gap: 0.5rem;">
+        <a href="#" class="btn btn-primary" id="drawer-entry-link" style="background-color: var(--sidebar-bg); border-color: var(--sidebar-bg); width: 100%;">
+            <i class="fa-solid fa-truck-ramp-box"></i> Lançar Compra (PMP)
+        </a>
+        <div style="display: flex; gap: 0.5rem; width: 100%;">
+            <a href="#" class="btn btn-secondary" id="drawer-edit-link" style="flex: 1;">
+                <i class="fa-solid fa-pen-to-square"></i> Editar
+            </a>
+            <button type="button" class="btn btn-danger" id="drawer-delete-link" onclick="confirmDeleteFromDrawer(this)" style="flex: 1;">
+                <i class="fa-solid fa-trash-can"></i> Excluir
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // 1. Marca filter redirection
+    function filterByMarca(value) {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (value) {
+            urlParams.set('marca', value);
+        } else {
+            urlParams.delete('marca');
+        }
+        urlParams.delete('page'); // reset pagination
+        window.location.search = urlParams.toString();
+    }
+
+    // 1b. Categoria filter redirection
+    function filterByCategoria(value) {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (value) {
+            urlParams.set('categoria', value);
+        } else {
+            urlParams.delete('categoria');
+        }
+        urlParams.delete('page'); // reset pagination
+        window.location.search = urlParams.toString();
+    }
+
+    // 1c. Vehicle FIPE inline filter popover logic
+    document.addEventListener("DOMContentLoaded", function() {
+        const toggleBtn = document.getElementById("btn-vehicle-filter-toggle");
+        const popover = document.getElementById("vehicle-filter-popover");
+        const selectMarca = document.getElementById("filter-v-marca");
+        const selectModelo = document.getElementById("filter-v-modelo");
+        const selectAno = document.getElementById("filter-v-ano");
+        const btnClear = document.getElementById("btn-vehicle-filter-clear");
+        const btnSubmit = document.getElementById("btn-vehicle-filter-submit");
+
+        const DEIVID_FIPE_URL = "https://parallelum.com.br/fipe/api/v1";
+
+        // Toggle popover visibility
+        if (toggleBtn) {
+            toggleBtn.addEventListener("click", function(e) {
+                e.stopPropagation();
+                const isHidden = popover.style.display === "none" || popover.style.display === "";
+                popover.style.display = isHidden ? "flex" : "none";
+                
+                // Fetch brands on first open
+                if (isHidden && selectMarca.children.length <= 1) {
+                    loadBrands();
+                }
+            });
+        }
+
+        // Prevent popover close when clicking inside it
+        if (popover) {
+            popover.addEventListener("click", function(e) {
+                e.stopPropagation();
+            });
+        }
+
+        // Close popover when clicking outside
+        document.addEventListener("click", function() {
+            if (popover) popover.style.display = "none";
+        });
+
+        // Load FIPE Brands
+        async function loadBrands() {
+            try {
+                selectMarca.innerHTML = '<option value="">Carregando marcas...</option>';
+                const res = await fetch(`${DEIVID_FIPE_URL}/carros/marcas`);
+                const marcas = await res.json();
+                
+                selectMarca.innerHTML = '<option value="">Selecione a Marca</option>';
+                marcas.forEach(marca => {
+                    const opt = document.createElement("option");
+                    opt.value = marca.codigo;
+                    opt.textContent = marca.nome;
+                    selectMarca.appendChild(opt);
+                });
+            } catch (err) {
+                console.error("Erro ao carregar marcas FIPE: ", err);
+                selectMarca.innerHTML = '<option value="">Erro ao carregar</option>';
+            }
+        }
+
+        // Brand change -> fetch Models
+        selectMarca.addEventListener("change", async function() {
+            const codMarca = this.value;
+            selectModelo.innerHTML = '<option value="">Selecione o Modelo</option>';
+            selectModelo.disabled = true;
+            selectAno.innerHTML = '<option value="">Selecione o Ano</option>';
+            selectAno.disabled = true;
+            btnSubmit.disabled = true;
+
+            if (!codMarca) return;
+
+            try {
+                selectModelo.innerHTML = '<option value="">Carregando...</option>';
+                const res = await fetch(`${DEIVID_FIPE_URL}/carros/marcas/${codMarca}/modelos`);
+                const data = await res.json();
+                
+                selectModelo.innerHTML = '<option value="">Selecione o Modelo</option>';
+                data.modelos.forEach(modelo => {
+                    const opt = document.createElement("option");
+                    opt.value = modelo.codigo;
+                    opt.textContent = modelo.nome;
+                    selectModelo.appendChild(opt);
+                });
+                selectModelo.disabled = false;
+            } catch (err) {
+                console.error("Erro ao carregar modelos: ", err);
+                selectModelo.innerHTML = '<option value="">Erro ao carregar</option>';
+            }
+        });
+
+        // Model change -> fetch Years
+        selectModelo.addEventListener("change", async function() {
+            const codMarca = selectMarca.value;
+            const codModelo = this.value;
+            
+            selectAno.innerHTML = '<option value="">Selecione o Ano</option>';
+            selectAno.disabled = true;
+            btnSubmit.disabled = true;
+
+            if (!codModelo) return;
+
+            try {
+                selectAno.innerHTML = '<option value="">Carregando...</option>';
+                const res = await fetch(`${DEIVID_FIPE_URL}/carros/marcas/${codMarca}/modelos/${codModelo}/anos`);
+                const anos = await res.json();
+                
+                selectAno.innerHTML = '<option value="">Selecione o Ano</option>';
+                
+                // Add option for "Todos os Anos"
+                const optAll = document.createElement("option");
+                optAll.value = "Todos os anos";
+                optAll.textContent = "Todos os anos";
+                selectAno.appendChild(optAll);
+                
+                anos.forEach(ano => {
+                    const opt = document.createElement("option");
+                    opt.value = ano.nome; // we use raw label (e.g. "2012 Gasolina")
+                    opt.textContent = ano.nome;
+                    selectAno.appendChild(opt);
+                });
+                selectAno.disabled = false;
+            } catch (err) {
+                console.error("Erro ao carregar anos: ", err);
+                selectAno.innerHTML = '<option value="">Erro ao carregar</option>';
+            }
+        });
+
+        // Year change -> enable Submit
+        selectAno.addEventListener("change", function() {
+            btnSubmit.disabled = !this.value;
+        });
+
+        // Clear button click
+        btnClear.addEventListener("click", function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            urlParams.delete("compat_marca");
+            urlParams.delete("compat_modelo");
+            urlParams.delete("compat_ano");
+            urlParams.delete("page");
+            window.location.search = urlParams.toString();
+        });
+
+        // Submit button click (filter)
+        btnSubmit.addEventListener("click", function() {
+            const marcaName = selectMarca.options[selectMarca.selectedIndex].text;
+            const modeloName = selectModelo.options[selectModelo.selectedIndex].text;
+            const anoName = selectAno.value;
+
+            if (!marcaName || !modeloName || !anoName) return;
+
+            const urlParams = new URLSearchParams(window.location.search);
+            urlParams.set("compat_marca", marcaName);
+            urlParams.set("compat_modelo", modeloName);
+            urlParams.set("compat_ano", anoName);
+            urlParams.delete("page"); // reset pagination
+            window.location.search = urlParams.toString();
+        });
+    });
+
+    // 2. Select All & Checkboxes handling
+    const selectAllCheckbox = document.getElementById('select-all-checkbox');
+    const productCheckboxes = document.querySelectorAll('.product-checkbox');
+    const bulkPanel = document.getElementById('bulk-actions-panel');
+    const bulkSelectedCounter = document.getElementById('bulk-selected-counter');
+    const productsTable = document.getElementById('products-table');
+
+    function updateBulkPanel() {
+        const checkedCount = document.querySelectorAll('.product-checkbox:checked').length;
+        bulkSelectedCounter.innerText = checkedCount;
+        
+        if (checkedCount > 0) {
+            bulkPanel.classList.add('show');
+        } else {
+            bulkPanel.classList.remove('show');
+        }
+    }
+
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            productCheckboxes.forEach(cb => {
+                cb.checked = selectAllCheckbox.checked;
+                const row = document.getElementById(`row-product-${cb.value}`);
+                if (row) {
+                    if (cb.checked) {
+                        row.classList.add('selected');
+                    } else {
+                        row.classList.remove('selected');
+                    }
+                }
+            });
+            updateBulkPanel();
+        });
+    }
+
+    productCheckboxes.forEach(cb => {
+        cb.addEventListener('change', function() {
+            const row = document.getElementById(`row-product-${cb.value}`);
+            if (row) {
+                if (cb.checked) {
+                    row.classList.add('selected');
+                } else {
+                    row.classList.remove('selected');
+                }
+            }
+            
+            // If any checkbox is unchecked, select-all is unchecked
+            const allChecked = Array.from(productCheckboxes).every(item => item.checked);
+            selectAllCheckbox.checked = allChecked;
+            
+            updateBulkPanel();
+        });
+    });
+
+    function triggerBulkAction(action) {
+        const checkedCount = document.querySelectorAll('.product-checkbox:checked').length;
+        if (!checkedCount) return;
+        
+        if (action === 'delete') {
+            if (confirm(`Tem certeza que deseja excluir as ${checkedCount} autopeças selecionadas? Esta ação não pode ser desfeita.`)) {
+                document.getElementById('bulk-action-input').value = action;
+                const form = document.getElementById('bulk-actions-form');
+                form.action = "{% url 'estoque-acoes-lote' %}";
+                form.submit();
+            }
+        } else if (action === 'print') {
+            const form = document.getElementById('bulk-actions-form');
+            form.action = "{% url 'estoque-imprimir-etiquetas' %}";
+            form.submit();
+        }
+    }
+
+    // 3. Slide-out Drawer functionality
+    const drawer = document.getElementById('product-detail-drawer');
+    const backdrop = document.getElementById('drawer-backdrop');
+    const closeDrawerBtn = document.getElementById('btn-close-drawer');
+    const drawerLinks = document.querySelectorAll('.product-name-link');
+
+    // Drawer fields
+    const drawerNome = document.getElementById('drawer-prod-nome');
+    const drawerSku = document.getElementById('drawer-prod-sku');
+    const drawerEstoque = document.getElementById('drawer-prod-estoque');
+    const drawerMargem = document.getElementById('drawer-prod-margem');
+    const drawerCusto = document.getElementById('drawer-prod-custo');
+    const drawerVenda = document.getElementById('drawer-prod-venda');
+    const drawerMarca = document.getElementById('drawer-prod-marca');
+    const drawerEan = document.getElementById('drawer-prod-ean');
+    const drawerNcm = document.getElementById('drawer-prod-ncm');
+    const drawerMarginBar = document.getElementById('drawer-margin-bar');
+    const drawerEditLink = document.getElementById('drawer-edit-link');
+    const drawerDeleteLink = document.getElementById('drawer-delete-link');
+    const drawerEntryLink = document.getElementById('drawer-entry-link');
+
+    // Tab Switches logic
+    const tabBtns = document.querySelectorAll('.drawer-tab-btn');
+    const tabPanes = document.querySelectorAll('.drawer-tab-pane');
+
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            // Remove active from all buttons
+            tabBtns.forEach(b => b.classList.remove('active'));
+            // Hide all tab panes
+            tabPanes.forEach(pane => pane.classList.remove('active'));
+
+            // Add active to current button
+            this.classList.add('active');
+            // Show corresponding tab pane
+            const tabId = this.dataset.tab;
+            const targetPane = document.getElementById(tabId);
+            if (targetPane) targetPane.classList.add('active');
+        });
+    });
+
+    function resetDrawerTabs() {
+        tabBtns.forEach(b => b.classList.remove('active'));
+        tabPanes.forEach(p => p.classList.remove('active'));
+        
+        // Make Details active by default
+        document.querySelector('[data-tab="tab-details"]').classList.add('active');
+        document.getElementById('tab-details').classList.add('active');
+    }
+
+    // Fetch and populate compatibilities in drawer
+    async function loadDrawerCompatibilities(produtoId) {
+        const compatContainer = document.getElementById('drawer-compat-list');
+        const compatEmpty = document.getElementById('drawer-compat-empty');
+        compatContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); font-size: 0.8rem; padding: 1rem;"><i class="fa-solid fa-spinner fa-spin"></i> Carregando...</div>';
+        compatEmpty.style.display = 'none';
+
+        try {
+            const res = await fetch(`/produto/compatibilidades/?produto_id=${produtoId}`);
+            const data = await res.json();
+            if (data.success && data.compatibilidades && data.compatibilidades.length > 0) {
+                compatContainer.innerHTML = '';
+                data.compatibilidades.forEach(item => {
+                    const el = document.createElement('div');
+                    el.style.cssText = 'background: #f8fafc; border: 1px solid var(--border-color); border-radius: 6px; padding: 0.6rem 0.85rem; font-size: 0.8rem; display: flex; justify-content: space-between; align-items: center;';
+                    el.innerHTML = `
+                        <div>
+                            <strong>${item.marca}</strong> ${item.modelo}
+                        </div>
+                        <span class="badge-stock stock-ok" style="font-weight: 500; font-size: 0.7rem; padding: 0.15rem 0.35rem; color: #0d6837; border-color: var(--success-border);">${item.ano}</span>
+                    `;
+                    compatContainer.appendChild(el);
+                });
+            } else {
+                compatContainer.innerHTML = '';
+                compatEmpty.style.display = 'block';
+            }
+        } catch (err) {
+            console.error("Erro ao carregar compatibilidades do drawer: ", err);
+            compatContainer.innerHTML = '<div style="color: red; font-size: 0.8rem; text-align: center;">Erro ao carregar dados.</div>';
+        }
+    }
+
+    // Fetch and populate Kardex in drawer
+    async function loadDrawerKardex(produtoId) {
+        const kardexContainer = document.getElementById('drawer-kardex-list');
+        const kardexEmpty = document.getElementById('drawer-kardex-empty');
+        kardexContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); font-size: 0.8rem; padding: 1rem;"><i class="fa-solid fa-spinner fa-spin"></i> Carregando...</div>';
+        kardexEmpty.style.display = 'none';
+
+        try {
+            const res = await fetch(`/produto/movimentacoes/?produto_id=${produtoId}`);
+            const data = await res.json();
+            if (data.success && data.movimentacoes && data.movimentacoes.length > 0) {
+                kardexContainer.innerHTML = '';
+                data.movimentacoes.forEach(m => {
+                    const item = document.createElement('div');
+                    item.className = 'kardex-item';
+                    
+                    const badgeClass = m.tipo_code === 'E' ? 'kardex-e' : m.tipo_code === 'S' ? 'kardex-s' : 'kardex-a';
+                    const sinalStr = m.sinal;
+                    
+                    item.innerHTML = `
+                        <div class="kardex-row-1">
+                            <span class="kardex-date">${m.data}</span>
+                            <span class="kardex-badge ${badgeClass}">${m.tipo}</span>
+                        </div>
+                        <div class="kardex-desc">${m.descricao}</div>
+                        <div class="kardex-row-2">
+                            <span>Qtd: <span class="kardex-val">${sinalStr}${m.quantidade}</span></span>
+                            <span>Valor: <span class="kardex-val">R$ ${m.custo.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></span>
+                            <span>Saldo: <span class="kardex-val">${m.saldo_atual}</span></span>
+                        </div>
+                    `;
+                    kardexContainer.appendChild(item);
+                });
+            } else {
+                kardexContainer.innerHTML = '';
+                kardexEmpty.style.display = 'block';
+            }
+        } catch (err) {
+            console.error("Erro ao carregar Kardex do drawer: ", err);
+            kardexContainer.innerHTML = '<div style="color: red; font-size: 0.8rem; text-align: center;">Erro ao carregar dados.</div>';
+        }
+    }
+
+    function openDrawer(data) {
+        // Fill data
+        drawerNome.innerText = data.nome;
+        drawerSku.innerText = data.sku;
+        drawerEstoque.innerText = data.estoque;
+        drawerMarca.innerText = data.marca || '-';
+        drawerEan.innerText = data.ean || '-';
+        drawerNcm.innerText = data.ncm || '-';
+        drawerCusto.innerText = `R$ ${parseFloat(data.custo).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        drawerVenda.innerText = `R$ ${parseFloat(data.venda).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        
+        // Calculate margin
+        const custoVal = parseFloat(data.custo);
+        const vendaVal = parseFloat(data.venda);
+        let marginPercent = 0;
+        if (vendaVal > 0) {
+            marginPercent = ((vendaVal - custoVal) / vendaVal) * 100;
+        }
+        
+        drawerMargem.innerText = `${marginPercent.toFixed(0)}%`;
+        drawerMarginBar.style.width = `${Math.max(0, Math.min(100, marginPercent))}%`;
+        
+        // Dynamic color for margin bar
+        drawerMarginBar.className = 'margin-indicator-fill';
+        if (marginPercent >= 30) {
+            drawerMarginBar.classList.add('high');
+        } else if (marginPercent >= 15) {
+            drawerMarginBar.classList.add('medium');
+        } else {
+            drawerMarginBar.classList.add('low');
+        }
+        
+        // Edit, Delete & Entry actions links
+        drawerEditLink.href = `/produto/${data.id}/editar/`;
+        drawerEntryLink.href = `/produto/entrada/?produto_id=${data.id}`;
+        drawerDeleteLink.dataset.id = data.id;
+        drawerDeleteLink.dataset.nome = data.nome;
+        
+        // Load Tabs dynamically via AJAX
+        resetDrawerTabs();
+        loadDrawerCompatibilities(data.id);
+        loadDrawerKardex(data.id);
+
+        // Show drawer and backdrop
+        drawer.classList.add('open');
+        backdrop.classList.add('open');
+    }
+
+    function closeDrawer() {
+        drawer.classList.remove('open');
+        backdrop.classList.remove('open');
+    }
+
+    drawerLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const data = {
+                id: this.dataset.id,
+                sku: this.dataset.sku,
+                nome: this.dataset.nome,
+                ean: this.dataset.ean,
+                marca: this.dataset.marca,
+                ncm: this.dataset.ncm,
+                custo: this.dataset.custo,
+                venda: this.dataset.venda,
+                estoque: this.dataset.estoque
+            };
+            openDrawer(data);
+        });
+    });
+
+    if (closeDrawerBtn) closeDrawerBtn.addEventListener('click', closeDrawer);
+    if (backdrop) backdrop.addEventListener('click', closeDrawer);
+
+    function confirmDeleteFromDrawer(btn) {
+        const id = btn.dataset.id;
+        const nome = btn.dataset.nome;
+        if (confirm(`Tem certeza que deseja excluir o produto "${nome}"? Esta ação não poderá ser desfeita.`)) {
+            window.location.href = `/produto/${id}/excluir/`;
+        }
+    }
+</script>
 {% endblock %}

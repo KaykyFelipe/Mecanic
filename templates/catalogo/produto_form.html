@@ -72,6 +72,31 @@
                 {{ form.ncm.errors }}
             </div>
 
+            <!-- Categoria -->
+            <div class="form-group" id="group-categoria">
+                <label for="{{ form.categoria.id_for_label }}">
+                    {{ form.categoria.label }}
+                    <a href="{% url 'categoria-listar' %}" target="_blank" style="float: right; font-size: 0.75rem; font-weight: 600; color: var(--sidebar-active-bg); text-decoration: none;">
+                        <i class="fa-solid fa-gear"></i> Gerenciar
+                    </a>
+                </label>
+                {{ form.categoria }}
+                {% if form.categoria.help_text %}
+                    <span class="help-text">{{ form.categoria.help_text }}</span>
+                {% endif %}
+                {{ form.categoria.errors }}
+            </div>
+
+            <!-- Preço de Custo -->
+            <div class="form-group" id="group-cost-price">
+                <label for="{{ form.preco_custo.id_for_label }}">{{ form.preco_custo.label }}</label>
+                {{ form.preco_custo }}
+                {% if form.preco_custo.help_text %}
+                    <span class="help-text">{{ form.preco_custo.help_text }}</span>
+                {% endif %}
+                {{ form.preco_custo.errors }}
+            </div>
+
             <!-- Preço de Venda -->
             <div class="form-group" id="group-price">
                 <label for="{{ form.preco_venda.id_for_label }}">{{ form.preco_venda.label }}</label>
@@ -104,4 +129,298 @@
         </div>
     </form>
 </div>
+
+<!-- Mapeamento de Compatibilidade FIPE -->
+{% if form.instance.pk %}
+    <div class="glass-card fipe-card" style="max-width: 800px; margin: 0.5rem auto 2rem auto;">
+        <div class="card-header">
+            <h2 class="card-title"><i class="fa-solid fa-car"></i> Compatibilidade de Veículos (FIPE)</h2>
+        </div>
+        
+        <div class="fipe-grid">
+            <div class="form-group">
+                <label for="fipe-marca">Marca</label>
+                <select id="fipe-marca" class="form-control">
+                    <option value="">Selecione a Marca</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="fipe-modelo">Modelo</label>
+                <select id="fipe-modelo" class="form-control" disabled>
+                    <option value="">Selecione o Modelo</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="fipe-ano">Ano / Versão</label>
+                <select id="fipe-ano" class="form-control" disabled>
+                    <option value="">Selecione o Ano</option>
+                </select>
+            </div>
+            <button type="button" id="btn-add-compat" class="btn btn-primary" style="background-color: var(--sidebar-bg); border-color: var(--sidebar-bg); padding: 0.6rem 1.25rem;" disabled>
+                <i class="fa-solid fa-plus"></i> Vincular
+            </button>
+        </div>
+        
+        <div id="compat-table-container">
+            <table class="compat-table" id="compat-table">
+                <thead>
+                    <tr>
+                        <th>Marca</th>
+                        <th>Modelo</th>
+                        <th>Ano / Versão</th>
+                        <th style="width: 80px; text-align: center;">Ação</th>
+                    </tr>
+                </thead>
+                <tbody id="compat-list-body">
+                    <!-- Dynamic Rows -->
+                </tbody>
+            </table>
+            <div id="compat-empty-state" class="empty-state" style="padding: 1.5rem; display: none;">
+                <p style="font-size: 0.85rem; margin: 0; color: var(--text-muted);"><i class="fa-solid fa-circle-info"></i> Nenhuma compatibilidade vinculada a este produto.</p>
+            </div>
+        </div>
+    </div>
+{% else %}
+    <div class="glass-card" style="max-width: 800px; margin: 0.5rem auto 2rem auto; text-align: center; padding: 2rem; border-radius: 12px;">
+        <i class="fa-solid fa-car" style="font-size: 2.5rem; color: var(--text-muted); margin-bottom: 0.75rem;"></i>
+        <h3>Compatibilidade de Veículos</h3>
+        <p class="help-text" style="font-size: 0.88rem; max-width: 500px; margin: 0.5rem auto 0 auto;">
+            Cadastre e salve o produto primeiro. Após salvar, você poderá vincular compatibilidades de veículos oficiais da API FIPE (BrasilAPI).
+        </p>
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if form.instance.pk %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const pId = "{{ form.instance.pk }}";
+        const selectMarca = document.getElementById("fipe-marca");
+        const selectModelo = document.getElementById("fipe-modelo");
+        const selectAno = document.getElementById("fipe-ano");
+        const btnAdd = document.getElementById("btn-add-compat");
+        const compatBody = document.getElementById("compat-list-body");
+        const emptyState = document.getElementById("compat-empty-state");
+
+        // FIPE API Base URL
+        const DEIVID_FIPE_URL = "https://parallelum.com.br/fipe/api/v1";
+
+        // 1. Fetch current compatibilities
+        async function loadCompatibilities() {
+            try {
+                const res = await fetch(`/produto/compatibilidades/?produto_id=${pId}`);
+                const data = await res.json();
+                if (data.success) {
+                    renderCompatList(data.compatibilidades);
+                }
+            } catch (err) {
+                console.error("Erro ao carregar compatibilidades: ", err);
+            }
+        }
+
+        function renderCompatList(items) {
+            compatBody.innerHTML = "";
+            if (!items || items.length === 0) {
+                emptyState.style.display = "block";
+                return;
+            }
+            emptyState.style.display = "none";
+            items.forEach(item => {
+                const row = document.createElement("tr");
+                row.id = `compat-row-${item.id}`;
+                row.innerHTML = `
+                    <td><strong>${item.marca}</strong></td>
+                    <td>${item.modelo}</td>
+                    <td><span class="badge-stock stock-ok" style="font-weight: 500;">${item.ano}</span></td>
+                    <td style="text-align: center;">
+                        <button type="button" class="compat-delete-btn" data-id="${item.id}" title="Remover Compatibilidade">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                `;
+                compatBody.appendChild(row);
+            });
+
+            // Bind delete events
+            document.querySelectorAll(".compat-delete-btn").forEach(btn => {
+                btn.addEventListener("click", function() {
+                    deleteCompatibility(this.dataset.id);
+                });
+            });
+        }
+
+        // Delete compatibility via AJAX
+        async function deleteCompatibility(id) {
+            if (!confirm("Deseja realmente remover esta compatibilidade?")) return;
+            
+            try {
+                const res = await fetch(`/produto/compatibilidade/${id}/remover/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const row = document.getElementById(`compat-row-${id}`);
+                    if (row) row.remove();
+                    // Update state if empty
+                    if (compatBody.children.length === 0) {
+                        emptyState.style.display = "block";
+                    }
+                } else {
+                    alert("Erro ao remover compatibilidade: " + (data.error || "Erro desconhecido"));
+                }
+            } catch (err) {
+                console.error("Erro na requisição de remoção: ", err);
+            }
+        }
+
+        // 2. Fetch and Fill FIPE Marcas
+        async function loadMarcas() {
+            try {
+                const res = await fetch(`${DEIVID_FIPE_URL}/carros/marcas`);
+                const marcas = await res.json();
+                
+                selectMarca.innerHTML = '<option value="">Selecione a Marca</option>';
+                marcas.forEach(marca => {
+                    const opt = document.createElement("option");
+                    opt.value = marca.codigo;
+                    opt.textContent = marca.nome;
+                    selectMarca.appendChild(opt);
+                });
+            } catch (err) {
+                console.error("Erro ao carregar marcas FIPE: ", err);
+                selectMarca.innerHTML = '<option value="">Erro ao carregar FIPE</option>';
+            }
+        }
+
+        // Marca selector changed
+        selectMarca.addEventListener("change", async function() {
+            const codMarca = this.value;
+            selectModelo.innerHTML = '<option value="">Selecione o Modelo</option>';
+            selectModelo.disabled = true;
+            selectAno.innerHTML = '<option value="">Selecione o Ano</option>';
+            selectAno.disabled = true;
+            btnAdd.disabled = true;
+
+            if (!codMarca) return;
+
+            try {
+                selectModelo.innerHTML = '<option value="">Carregando modelos...</option>';
+                const res = await fetch(`${DEIVID_FIPE_URL}/carros/marcas/${codMarca}/modelos`);
+                const data = await res.json();
+                
+                selectModelo.innerHTML = '<option value="">Selecione o Modelo</option>';
+                data.modelos.forEach(modelo => {
+                    const opt = document.createElement("option");
+                    opt.value = modelo.codigo;
+                    opt.textContent = modelo.nome;
+                    selectModelo.appendChild(opt);
+                });
+                selectModelo.disabled = false;
+            } catch (err) {
+                console.error("Erro ao carregar modelos: ", err);
+                selectModelo.innerHTML = '<option value="">Erro ao carregar modelos</option>';
+            }
+        });
+
+        // Modelo selector changed
+        selectModelo.addEventListener("change", async function() {
+            const codMarca = selectMarca.value;
+            const codModelo = this.value;
+            
+            selectAno.innerHTML = '<option value="">Selecione o Ano</option>';
+            selectAno.disabled = true;
+            btnAdd.disabled = true;
+
+            if (!codModelo) return;
+
+            try {
+                selectAno.innerHTML = '<option value="">Carregando anos...</option>';
+                const res = await fetch(`${DEIVID_FIPE_URL}/carros/marcas/${codMarca}/modelos/${codModelo}/anos`);
+                const anos = await res.json();
+                
+                selectAno.innerHTML = '<option value="">Selecione o Ano</option>';
+                
+                // Add option for "Todos os Anos" (custom ERP value)
+                const optAll = document.createElement("option");
+                optAll.value = "Todos os anos";
+                optAll.textContent = "Todos os anos";
+                selectAno.appendChild(optAll);
+                
+                anos.forEach(ano => {
+                    const opt = document.createElement("option");
+                    opt.value = ano.nome; // we save the label (e.g. "2010 Gasolina")
+                    opt.textContent = ano.nome;
+                    selectAno.appendChild(opt);
+                });
+                selectAno.disabled = false;
+            } catch (err) {
+                console.error("Erro ao carregar anos: ", err);
+                selectAno.innerHTML = '<option value="">Erro ao carregar anos</option>';
+            }
+        });
+
+        // Ano selector changed
+        selectAno.addEventListener("change", function() {
+            btnAdd.disabled = !this.value;
+        });
+
+        // Add compatibility event
+        btnAdd.addEventListener("click", async function() {
+            const marcaNome = selectMarca.options[selectMarca.selectedIndex].text;
+            const modeloNome = selectModelo.options[selectModelo.selectedIndex].text;
+            const anoNome = selectAno.value;
+
+            if (!marcaNome || !modeloNome || !anoNome) return;
+
+            btnAdd.disabled = true;
+            btnAdd.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Vinculando...';
+
+            try {
+                const formData = new FormData();
+                formData.append("produto_id", pId);
+                formData.append("marca_carro", marcaNome);
+                formData.append("modelo_carro", modeloNome);
+                formData.append("ano_carro", anoNome);
+
+                const res = await fetch(`/produto/compatibilidade/adicionar/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    },
+                    body: formData
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    // Reload the compatibility list
+                    await loadCompatibilities();
+                    
+                    // Reset fields
+                    selectMarca.value = "";
+                    selectModelo.innerHTML = '<option value="">Selecione o Modelo</option>';
+                    selectModelo.disabled = true;
+                    selectAno.innerHTML = '<option value="">Selecione o Ano</option>';
+                    selectAno.disabled = true;
+                } else {
+                    alert("Erro ao adicionar compatibilidade: " + (data.error || "Erro desconhecido"));
+                }
+            } catch (err) {
+                console.error("Erro ao salvar compatibilidade: ", err);
+                alert("Erro de comunicação com o servidor.");
+            } finally {
+                btnAdd.innerHTML = '<i class="fa-solid fa-plus"></i> Vincular';
+                btnAdd.disabled = true;
+            }
+        });
+
+        // Initial loadings
+        loadCompatibilities();
+        loadMarcas();
+    });
+</script>
+{% endif %}
 {% endblock %}

@@ -4,11 +4,11 @@ from django.views import View
 from django.urls import reverse_lazy
 from django.db.models import F, Sum, Q
 from django.contrib import messages
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
-from .models import Produto
-from .forms import ProdutoForm, ProdutoCSVImportForm
+from .models import Produto, EntradaEstoque, Categoria, CompatibilidadeProduto, MovimentacaoEstoque
+from .forms import ProdutoForm, ProdutoCSVImportForm, EntradaEstoqueForm, CategoriaForm
 import csv
 import io
 
@@ -21,15 +21,49 @@ class ProdutoListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         queryset = super().get_queryset()
         q = self.request.GET.get('q', '')
+        status = self.request.GET.get('status', '')
+        marca = self.request.GET.get('marca', '')
+        categoria = self.request.GET.get('categoria', '')
+        
+        compat_marca = self.request.GET.get('compat_marca', '')
+        compat_modelo = self.request.GET.get('compat_modelo', '')
+        compat_ano = self.request.GET.get('compat_ano', '')
+        
         if q:
             queryset = queryset.filter(
                 Q(sku__icontains=q) |
                 Q(nome__icontains=q) |
                 Q(marca__icontains=q) |
                 Q(ncm__icontains=q) |
-                Q(codigo_barras_ean__icontains=q)
+                Q(codigo_barras_ean__icontains=q) |
+                Q(compatibilidades__marca_carro__icontains=q) |
+                Q(compatibilidades__modelo_carro__icontains=q) |
+                Q(compatibilidades__ano_carro__icontains=q)
             )
-        return queryset
+            
+        if status:
+            if status == 'ok':
+                queryset = queryset.filter(quantidade_estoque__gte=5)
+            elif status == 'low':
+                queryset = queryset.filter(quantidade_estoque__gt=0, quantidade_estoque__lt=5)
+            elif status == 'out':
+                queryset = queryset.filter(quantidade_estoque=0)
+                
+        if marca:
+            queryset = queryset.filter(marca=marca)
+            
+        if categoria:
+            queryset = queryset.filter(categoria_id=categoria)
+
+        # Advanced FIPE Vehicle Compatibility Filtering
+        if compat_marca:
+            queryset = queryset.filter(compatibilidades__marca_carro__iexact=compat_marca)
+        if compat_modelo:
+            queryset = queryset.filter(compatibilidades__modelo_carro__iexact=compat_modelo)
+        if compat_ano and compat_ano != 'Todos os anos':
+            queryset = queryset.filter(compatibilidades__ano_carro__icontains=compat_ano)
+            
+        return queryset.distinct()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -46,7 +80,22 @@ class ProdutoListView(LoginRequiredMixin, ListView):
         ).aggregate(total=Sum('total_item'))['total']
         context['valor_total_estoque'] = valuation or 0.00
         
+        # Distinct brands for the filter dropdown
+        context['marcas'] = Produto.objects.exclude(marca='').values_list('marca', flat=True).distinct().order_by('marca')
+        
+        # Categories list
+        context['categorias'] = Categoria.objects.all()
+        
+        # Parameters to persist in pagination/filtering UI
         context['q'] = self.request.GET.get('q', '')
+        context['status_filter'] = self.request.GET.get('status', '')
+        context['marca_filter'] = self.request.GET.get('marca', '')
+        context['categoria_filter'] = self.request.GET.get('categoria', '')
+        
+        # FIPE vehicle compatibility active filters
+        context['compat_marca_filter'] = self.request.GET.get('compat_marca', '')
+        context['compat_modelo_filter'] = self.request.GET.get('compat_modelo', '')
+        context['compat_ano_filter'] = self.request.GET.get('compat_ano', '')
         return context
 
 class ProdutoCreateView(LoginRequiredMixin, CreateView):
@@ -77,6 +126,22 @@ class ProdutoDeleteView(LoginRequiredMixin, DeleteView):
     model = Produto
     template_name = 'catalogo/produto_confirm_delete.html'
     success_url = reverse_lazy('estoque-listar')
+
+
+class ProdutoBulkActionView(LoginRequiredMixin, View):
+    def post(self, request, *args, **kwargs):
+        action = request.POST.get('action')
+        product_ids = request.POST.getlist('selected_products')
+        
+        if not product_ids:
+            messages.warning(request, "Nenhum produto foi selecionado para ação em lote.")
+            return redirect('estoque-listar')
+            
+        if action == 'delete':
+            deleted_count, _ = Produto.objects.filter(id__in=product_ids).delete()
+            messages.success(request, f"{deleted_count} autopeças foram excluídas com sucesso.")
+            
+        return redirect('estoque-listar')
 
 
 class ProdutoImportCSVView(LoginRequiredMixin, View):
@@ -139,11 +204,24 @@ class ProdutoImportCSVView(LoginRequiredMixin, View):
             if not sku or not nome:
                 error_rows.append(f"Linha {row_idx}: 'sku' ou 'nome' estão em branco.")
                 continue
-                
-            # EAN/Código de barras
+                      # EAN/Código de barras
             codigo_barras_ean = row.get('codigo_barras_ean', row.get('ean', '')).strip() if (row.get('codigo_barras_ean') or row.get('ean')) else ''
             marca = row.get('marca', '').strip() if row.get('marca') else ''
             ncm = row.get('ncm', '').strip() if row.get('ncm') else ''
+            
+            # Parse preco_custo
+            preco_custo_raw = row.get('preco_custo', row.get('custo', '0')).strip() if (row.get('preco_custo') or row.get('custo')) else '0'
+            preco_custo_raw = preco_custo_raw.replace('R$', '').replace(' ', '')
+            if ',' in preco_custo_raw and '.' in preco_custo_raw:
+                preco_custo_raw = preco_custo_raw.replace('.', '').replace(',', '.')
+            elif ',' in preco_custo_raw:
+                preco_custo_raw = preco_custo_raw.replace(',', '.')
+                
+            try:
+                preco_custo = float(preco_custo_raw) if preco_custo_raw else 0.00
+            except ValueError:
+                error_rows.append(f"Linha {row_idx} (SKU {sku}): Preço de custo '{preco_custo_raw}' inválido.")
+                continue
             
             # Parse preco_venda
             preco_raw = row.get('preco_venda', row.get('preco', '0')).strip() if (row.get('preco_venda') or row.get('preco')) else '0'
@@ -156,7 +234,7 @@ class ProdutoImportCSVView(LoginRequiredMixin, View):
             try:
                 preco_venda = float(preco_raw) if preco_raw else 0.00
             except ValueError:
-                error_rows.append(f"Linha {row_idx} (SKU {sku}): Preço '{preco_raw}' inválido.")
+                error_rows.append(f"Linha {row_idx} (SKU {sku}): Preço de venda '{preco_raw}' inválido.")
                 continue
                 
             # Parse quantidade_estoque
@@ -176,6 +254,7 @@ class ProdutoImportCSVView(LoginRequiredMixin, View):
                         'codigo_barras_ean': codigo_barras_ean,
                         'marca': marca,
                         'ncm': ncm,
+                        'preco_custo': preco_custo,
                         'preco_venda': preco_venda,
                         'quantidade_estoque': quantidade_estoque
                     }
@@ -196,16 +275,216 @@ class ProdutoImportCSVView(LoginRequiredMixin, View):
             messages.success(request, f"Importação realizada com sucesso! {success_count} produtos cadastrados e {update_count} atualizados.")
             
         return redirect('estoque-listar')
-
-
+ 
+ 
 @login_required
 def download_csv_template(request):
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="modelo_importacao_pecas.csv"'
     
     writer = csv.writer(response, delimiter=';')
-    writer.writerow(['sku', 'nome', 'codigo_barras_ean', 'marca', 'ncm', 'preco_venda', 'quantidade_estoque'])
-    writer.writerow(['MLB-100000001', 'Amortecedor Traseiro Cofap', '7891234567891', 'Cofap', '87088000', '380,00', '10'])
-    writer.writerow(['MLB-100000002', 'Filtro de Combustível Fram', '7891234567892', 'Fram', '84212300', '45,90', '25'])
+    writer.writerow(['sku', 'nome', 'codigo_barras_ean', 'marca', 'ncm', 'preco_custo', 'preco_venda', 'quantidade_estoque'])
+    writer.writerow(['MLB-100000001', 'Amortecedor Traseiro Cofap', '7891234567891', 'Cofap', '87088000', '210,00', '380,00', '10'])
+    writer.writerow(['MLB-100000002', 'Filtro de Combustível Fram', '7891234567892', 'Fram', '84212300', '25,00', '45,90', '25'])
     
     return response
+
+
+class EntradaEstoqueCreateView(LoginRequiredMixin, CreateView):
+    model = EntradaEstoque
+    form_class = EntradaEstoqueForm
+    template_name = 'catalogo/entrada_estoque_form.html'
+    success_url = reverse_lazy('estoque-listar')
+
+    def get_initial(self):
+        initial = super().get_initial()
+        produto_id = self.request.GET.get('produto_id')
+        if produto_id:
+            initial['produto'] = produto_id
+        return initial
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, "Entrada de estoque registrada e preço médio ponderado (PMP) recalculado com sucesso!")
+        return response
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo'] = "Registrar Entrada de Estoque (PMP)"
+        context['botao_label'] = "Confirmar Entrada"
+        
+        produto_id = self.request.GET.get('produto_id')
+        if produto_id:
+            try:
+                selected_produto = Produto.objects.get(id=produto_id)
+                context['selected_produto'] = selected_produto
+                context['entradas_historico'] = EntradaEstoque.objects.filter(produto=selected_produto).order_by('-data_entrada')
+            except (Produto.DoesNotExist, ValueError):
+                pass
+                
+        return context
+
+
+class EntradaEstoqueDeleteView(LoginRequiredMixin, View):
+    def post(self, request, pk, *args, **kwargs):
+        try:
+            entrada = EntradaEstoque.objects.get(pk=pk)
+            produto_id = entrada.produto.id
+            entrada.delete()
+            messages.success(request, "Entrada de estoque excluída com sucesso! Estoque e preço médio (PMP) recalculados.")
+            return redirect(f"/produto/entrada/?produto_id={produto_id}")
+        except EntradaEstoque.DoesNotExist:
+            messages.error(request, "Lançamento de entrada não encontrado.")
+            return redirect('estoque-listar')
+
+
+class CompatibilidadeAddView(LoginRequiredMixin, View):
+    def post(self, request, *args, **kwargs):
+        produto_id = request.POST.get('produto_id')
+        marca_carro = request.POST.get('marca_carro')
+        modelo_carro = request.POST.get('modelo_carro')
+        ano_carro = request.POST.get('ano_carro', '')
+
+        if not produto_id or not marca_carro or not modelo_carro:
+            return JsonResponse({'success': False, 'error': 'Campos obrigatórios ausentes.'}, status=400)
+
+        try:
+            produto = Produto.objects.get(id=produto_id)
+            # Avoid duplicate mapping
+            compat, created = CompatibilidadeProduto.objects.get_or_create(
+                produto=produto,
+                marca_carro=marca_carro,
+                modelo_carro=modelo_carro,
+                ano_carro=ano_carro
+            )
+            return JsonResponse({
+                'success': True, 
+                'id': compat.id, 
+                'marca': compat.marca_carro, 
+                'modelo': compat.modelo_carro, 
+                'ano': compat.ano_carro or 'Todos os anos'
+            })
+        except Produto.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Produto não encontrado.'}, status=404)
+
+
+class CompatibilidadeRemoveView(LoginRequiredMixin, View):
+    def post(self, request, pk, *args, **kwargs):
+        try:
+            compat = CompatibilidadeProduto.objects.get(pk=pk)
+            compat.delete()
+            return JsonResponse({'success': True})
+        except CompatibilidadeProduto.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Compatibilidade não encontrada.'}, status=404)
+
+
+class CompatibilidadeListView(LoginRequiredMixin, View):
+    def get(self, request, *args, **kwargs):
+        produto_id = request.GET.get('produto_id')
+        if not produto_id:
+            return JsonResponse({'success': False, 'error': 'produto_id ausente.'}, status=400)
+            
+        compats = CompatibilidadeProduto.objects.filter(produto_id=produto_id)
+        data = [{
+            'id': c.id, 
+            'marca': c.marca_carro, 
+            'modelo': c.modelo_carro, 
+            'ano': c.ano_carro or 'Todos os anos'
+        } for c in compats]
+        return JsonResponse({'success': True, 'compatibilidades': data})
+
+
+class ProdutoMovimentacoesView(LoginRequiredMixin, View):
+    def get(self, request, *args, **kwargs):
+        produto_id = request.GET.get('produto_id')
+        if not produto_id:
+            return JsonResponse({'success': False, 'error': 'produto_id ausente.'}, status=400)
+            
+        movs = MovimentacaoEstoque.objects.filter(produto_id=produto_id).order_by('-data')
+        data = [{
+            'data': m.data.strftime('%d/%m/%Y %H:%M'),
+            'tipo': m.get_tipo_display(),
+            'tipo_code': m.tipo,
+            'quantidade': m.quantidade,
+            'sinal': '+' if m.tipo == 'E' else '-' if m.tipo == 'S' else '',
+            'saldo_anterior': m.saldo_anterior,
+            'saldo_atual': m.saldo_atual,
+            'custo': float(m.custo_unitario) if m.custo_unitario else 0.0,
+            'descricao': m.descricao
+        } for m in movs]
+        return JsonResponse({'success': True, 'movimentacoes': data})
+
+
+class ProdutoEtiquetasView(LoginRequiredMixin, View):
+    def post(self, request, *args, **kwargs):
+        product_ids = request.POST.getlist('selected_products')
+        if not product_ids:
+            messages.warning(request, "Nenhum produto foi selecionado para imprimir etiquetas.")
+            return redirect('estoque-listar')
+        
+        produtos = Produto.objects.filter(id__in=product_ids)
+        return render(request, 'catalogo/etiquetas_print.html', {'produtos': produtos})
+        
+    def get(self, request, *args, **kwargs):
+        ids_str = request.GET.get('ids', '')
+        if ids_str:
+            ids = ids_str.split(',')
+            produtos = Produto.objects.filter(id__in=ids)
+            return render(request, 'catalogo/etiquetas_print.html', {'produtos': produtos})
+        return redirect('estoque-listar')
+
+
+class CategoriaListView(LoginRequiredMixin, ListView):
+    model = Categoria
+    template_name = 'catalogo/categoria_list.html'
+    context_object_name = 'categorias'
+    ordering = ['nome']
+
+
+class CategoriaCreateView(LoginRequiredMixin, CreateView):
+    model = Categoria
+    form_class = CategoriaForm
+    template_name = 'catalogo/categoria_form.html'
+    success_url = reverse_lazy('categoria-listar')
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, f"Categoria '{self.object.nome}' cadastrada com sucesso!")
+        return response
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo'] = "Cadastrar Nova Categoria"
+        context['botao_label'] = "Salvar Categoria"
+        return context
+
+
+class CategoriaUpdateView(LoginRequiredMixin, UpdateView):
+    model = Categoria
+    form_class = CategoriaForm
+    template_name = 'catalogo/categoria_form.html'
+    success_url = reverse_lazy('categoria-listar')
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, f"Categoria '{self.object.nome}' atualizada com sucesso!")
+        return response
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo'] = f"Editar Categoria: {self.object.nome}"
+        context['botao_label'] = "Salvar Alterações"
+        return context
+
+
+class CategoriaDeleteView(LoginRequiredMixin, DeleteView):
+    model = Categoria
+    template_name = 'catalogo/categoria_confirm_delete.html'
+    success_url = reverse_lazy('categoria-listar')
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        nome = self.object.nome
+        self.object.delete()
+        messages.success(request, f"Categoria '{nome}' excluída com sucesso! Subcategorias associadas foram removidas por cascata.")
+        return redirect(self.get_success_url())
