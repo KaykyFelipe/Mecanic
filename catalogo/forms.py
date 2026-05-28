@@ -13,7 +13,9 @@ class ProdutoForm(forms.ModelForm):
             'categoria',
             'preco_custo',
             'preco_venda', 
-            'quantidade_estoque'
+            'quantidade_estoque',
+            'estoque_minimo',
+            'estoque_maximo',
         ]
         widgets = {
             'categoria': forms.Select(attrs={
@@ -52,6 +54,16 @@ class ProdutoForm(forms.ModelForm):
             'quantidade_estoque': forms.NumberInput(attrs={
                 'class': 'form-control', 
                 'placeholder': '0'
+            }),
+            'estoque_minimo': forms.NumberInput(attrs={
+                'class': 'form-control', 
+                'placeholder': '5',
+                'min': '0'
+            }),
+            'estoque_maximo': forms.NumberInput(attrs={
+                'class': 'form-control', 
+                'placeholder': '0 = sem limite',
+                'min': '0'
             }),
         }
 

@@ -16,7 +16,7 @@
     
     <div class="kpi-card kpi-warning" id="kpi-card-warning">
         <div>
-            <div class="kpi-label">Estoque Baixo (< 5)</div>
+            <div class="kpi-label">Estoque Baixo (≤ mín)</div>
             <div class="kpi-value">{{ estoque_baixo }}</div>
         </div>
     </div>
@@ -215,12 +215,12 @@
                         </td>
                         <td class="cell-bold">{{ produto.quantidade_estoque }}</td>
                         <td>
-                            {% if produto.quantidade_estoque >= 5 %}
-                                <span class="badge-stock stock-ok">
+                            {% if produto.quantidade_estoque > produto.estoque_minimo %}
+                                <span class="badge-stock stock-ok" title="Mín: {{ produto.estoque_minimo }}{% if produto.estoque_maximo > 0 %} | Máx: {{ produto.estoque_maximo }}{% endif %}">
                                     <i class="fa-solid fa-circle-check" style="font-size: 0.75rem; margin-right: 0.25rem;"></i> Ok
                                 </span>
                             {% elif produto.quantidade_estoque > 0 %}
-                                <span class="badge-stock stock-low">
+                                <span class="badge-stock stock-low" title="Abaixo do mínimo ({{ produto.estoque_minimo }})">
                                     <i class="fa-solid fa-triangle-exclamation" style="font-size: 0.75rem; margin-right: 0.25rem;"></i> Baixo
                                 </span>
                             {% else %}

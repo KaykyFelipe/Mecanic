@@ -76,7 +76,9 @@ class ProdutoViewsTestCase(TestCase):
             'categoria': self.categoria.id,
             'preco_custo': 20.00,
             'preco_venda': 35.50,
-            'quantidade_estoque': 20
+            'quantidade_estoque': 20,
+            'estoque_minimo': 5,
+            'estoque_maximo': 50,
         }
         response = self.client.post(reverse('estoque-criar'), data)
         self.assertEqual(response.status_code, 302) # Redireciona em caso de sucesso
@@ -119,7 +121,9 @@ class ProdutoViewsTestCase(TestCase):
             'categoria': self.categoria.id,
             'preco_custo': 80.00,
             'preco_venda': 135.00,
-            'quantidade_estoque': 10
+            'quantidade_estoque': 10,
+            'estoque_minimo': 3,
+            'estoque_maximo': 100,
         }
         response = self.client.post(reverse('estoque-editar', args=[self.produto.id]), data)
         self.assertEqual(response.status_code, 302)
@@ -575,3 +579,97 @@ class PremiumFeaturesTestCase(TestCase):
         self.assertEqual(response_wrong.status_code, 200)
         self.assertNotContains(response_wrong, "Filtro de Combustível Injetado")
 
+
+class EstoqueMinMaxTestCase(TestCase):
+    """Testa a funcionalidade de estoque mínimo e máximo configurável por produto"""
+    def setUp(self):
+        self.user = User.objects.create_user(username="testuser", password="testpassword123")
+        self.client.login(username="testuser", password="testpassword123")
+        self.categoria = Categoria.objects.create(nome="Freios")
+
+    def test_estoque_minimo_default_value(self):
+        """Testa se o valor padrão de estoque mínimo é 5"""
+        produto = Produto.objects.create(
+            sku="MIN-001", nome="Pastilha Freio", marca="Bosch",
+            ncm="87083019", preco_venda=100.00, quantidade_estoque=10
+        )
+        self.assertEqual(produto.estoque_minimo, 5)
+        self.assertEqual(produto.estoque_maximo, 0)
+
+    def test_estoque_minimo_custom_value(self):
+        """Testa se é possível definir um valor personalizado de estoque mínimo"""
+        produto = Produto.objects.create(
+            sku="MIN-002", nome="Disco Freio", marca="Fremax",
+            ncm="87083019", preco_venda=200.00, quantidade_estoque=3,
+            estoque_minimo=10, estoque_maximo=50
+        )
+        self.assertEqual(produto.estoque_minimo, 10)
+        self.assertEqual(produto.estoque_maximo, 50)
+
+    def test_kpi_uses_dynamic_minimo(self):
+        """Testa se o KPI 'Estoque Baixo' usa o estoque_minimo do produto"""
+        # Produto com estoque 8 e mínimo 10 -> deve ser "baixo"
+        Produto.objects.create(
+            sku="MIN-003", nome="Correia Dentada", marca="Gates",
+            ncm="40103900", preco_venda=80.00,
+            quantidade_estoque=8, estoque_minimo=10
+        )
+        # Produto com estoque 8 e mínimo 5 -> deve ser "ok"
+        Produto.objects.create(
+            sku="MIN-004", nome="Tensor Correia", marca="INA",
+            ncm="84839000", preco_venda=120.00,
+            quantidade_estoque=8, estoque_minimo=5
+        )
+        response = self.client.get(reverse('estoque-listar'))
+        self.assertEqual(response.status_code, 200)
+        # Should count 1 as low stock (MIN-003)
+        self.assertEqual(response.context['estoque_baixo'], 1)
+
+    def test_status_filter_ok_uses_minimo(self):
+        """Testa se o filtro 'ok' retorna apenas produtos acima do mínimo"""
+        p_ok = Produto.objects.create(
+            sku="MIN-005", nome="Bomba Dagua", marca="Urba",
+            ncm="84135019", preco_venda=150.00,
+            quantidade_estoque=20, estoque_minimo=10
+        )
+        p_low = Produto.objects.create(
+            sku="MIN-006", nome="Junta Motor", marca="Sabó",
+            ncm="84849000", preco_venda=90.00,
+            quantidade_estoque=3, estoque_minimo=10
+        )
+        response = self.client.get(reverse('estoque-listar'), {'status': 'ok'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Bomba Dagua")
+        self.assertNotContains(response, "Junta Motor")
+
+    def test_status_filter_low_uses_minimo(self):
+        """Testa se o filtro 'low' retorna produtos abaixo ou igual ao mínimo"""
+        Produto.objects.create(
+            sku="MIN-007", nome="Vela Ignição", marca="NGK",
+            ncm="85111000", preco_venda=30.00,
+            quantidade_estoque=5, estoque_minimo=5
+        )
+        response = self.client.get(reverse('estoque-listar'), {'status': 'low'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Vela Ignição")
+
+    def test_form_includes_minimo_maximo(self):
+        """Testa se o formulário de produto inclui os campos de estoque mínimo e máximo"""
+        response = self.client.get(reverse('estoque-criar'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id_estoque_minimo')
+        self.assertContains(response, 'id_estoque_maximo')
+
+    def test_create_with_custom_minmax(self):
+        """Testa criação de produto com valores personalizados de mín/máx"""
+        data = {
+            'sku': 'MIN-008', 'nome': 'Rolamento Roda', 'marca': 'SKF',
+            'ncm': '84822000', 'preco_custo': 40.00, 'preco_venda': 75.00,
+            'quantidade_estoque': 12, 'estoque_minimo': 8, 'estoque_maximo': 30,
+            'categoria': self.categoria.id,
+        }
+        response = self.client.post(reverse('estoque-criar'), data)
+        self.assertEqual(response.status_code, 302)
+        produto = Produto.objects.get(sku='MIN-008')
+        self.assertEqual(produto.estoque_minimo, 8)
+        self.assertEqual(produto.estoque_maximo, 30)

@@ -69,6 +69,16 @@ class Produto(models.Model):
         verbose_name="Quantidade em Estoque",
         help_text="Saldo atual do item."
     )
+    estoque_minimo = models.IntegerField(
+        default=5,
+        verbose_name="Estoque Mínimo",
+        help_text="Alerta quando o estoque atingir esse valor."
+    )
+    estoque_maximo = models.IntegerField(
+        default=0,
+        verbose_name="Estoque Máximo",
+        help_text="Capacidade máxima de armazenamento. 0 = sem limite."
+    )
     categoria = models.ForeignKey(
         Categoria,
         on_delete=models.SET_NULL,

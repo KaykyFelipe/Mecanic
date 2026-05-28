@@ -43,9 +43,9 @@ class ProdutoListView(LoginRequiredMixin, ListView):
             
         if status:
             if status == 'ok':
-                queryset = queryset.filter(quantidade_estoque__gte=5)
+                queryset = queryset.filter(quantidade_estoque__gt=F('estoque_minimo'))
             elif status == 'low':
-                queryset = queryset.filter(quantidade_estoque__gt=0, quantidade_estoque__lt=5)
+                queryset = queryset.filter(quantidade_estoque__gt=0, quantidade_estoque__lte=F('estoque_minimo'))
             elif status == 'out':
                 queryset = queryset.filter(quantidade_estoque=0)
                 
@@ -71,7 +71,10 @@ class ProdutoListView(LoginRequiredMixin, ListView):
         # Calculate statistics
         all_produtos = Produto.objects.all()
         context['total_produtos'] = all_produtos.count()
-        context['estoque_baixo'] = all_produtos.filter(quantidade_estoque__gt=0, quantidade_estoque__lt=5).count()
+        context['estoque_baixo'] = all_produtos.filter(
+            quantidade_estoque__gt=0,
+            quantidade_estoque__lte=F('estoque_minimo')
+        ).count()
         context['esgotados'] = all_produtos.filter(quantidade_estoque=0).count()
         
         # Total stock valuation

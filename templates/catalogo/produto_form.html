@@ -116,6 +116,30 @@
                 {% endif %}
                 {{ form.quantidade_estoque.errors }}
             </div>
+
+            <!-- Estoque Mínimo -->
+            <div class="form-group" id="group-stock-min">
+                <label for="{{ form.estoque_minimo.id_for_label }}">
+                    <i class="fa-solid fa-arrow-down" style="color: #e74c3c; margin-right: 0.25rem;"></i>{{ form.estoque_minimo.label }}
+                </label>
+                {{ form.estoque_minimo }}
+                {% if form.estoque_minimo.help_text %}
+                    <span class="help-text">{{ form.estoque_minimo.help_text }}</span>
+                {% endif %}
+                {{ form.estoque_minimo.errors }}
+            </div>
+
+            <!-- Estoque Máximo -->
+            <div class="form-group" id="group-stock-max">
+                <label for="{{ form.estoque_maximo.id_for_label }}">
+                    <i class="fa-solid fa-arrow-up" style="color: #27ae60; margin-right: 0.25rem;"></i>{{ form.estoque_maximo.label }}
+                </label>
+                {{ form.estoque_maximo }}
+                {% if form.estoque_maximo.help_text %}
+                    <span class="help-text">{{ form.estoque_maximo.help_text }}</span>
+                {% endif %}
+                {{ form.estoque_maximo.errors }}
+            </div>
         </div>
         
         <!-- Form Actions -->
