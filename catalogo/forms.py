@@ -1,5 +1,5 @@
 from django import forms
-from .models import Produto, EntradaEstoque, Categoria
+from .models import Produto, EntradaEstoque, Categoria, TabelaPreco, PrecoProdutoTabela
 
 class ProdutoForm(forms.ModelForm):
     class Meta:
@@ -11,6 +11,9 @@ class ProdutoForm(forms.ModelForm):
             'marca', 
             'ncm', 
             'categoria',
+            'unidade_medida',
+            'codigo_fabricante',
+            'parent',
             'preco_custo',
             'preco_venda', 
             'quantidade_estoque',
@@ -19,6 +22,16 @@ class ProdutoForm(forms.ModelForm):
         ]
         widgets = {
             'categoria': forms.Select(attrs={
+                'class': 'form-control'
+            }),
+            'unidade_medida': forms.Select(attrs={
+                'class': 'form-control'
+            }),
+            'codigo_fabricante': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ex: 0242229699 / BOSCH'
+            }),
+            'parent': forms.Select(attrs={
                 'class': 'form-control'
             }),
             'sku': forms.TextInput(attrs={
@@ -71,6 +84,17 @@ class ProdutoForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['categoria'].empty_label = "Selecione uma Categoria (Obrigatório)"
         self.fields['categoria'].required = True
+        
+        self.fields['unidade_medida'].required = False
+        
+        self.fields['parent'].empty_label = "Nenhum (Este é um Produto Principal / Pai)"
+        self.fields['parent'].required = False
+        
+        # Filtra o dropdown do pai para evitar aninhamento infinito e auto-referência
+        if self.instance and self.instance.pk:
+            self.fields['parent'].queryset = Produto.objects.exclude(pk=self.instance.pk).filter(parent__isnull=True)
+        else:
+            self.fields['parent'].queryset = Produto.objects.filter(parent__isnull=True)
 
 class ProdutoCSVImportForm(forms.Form):
     arquivo_csv = forms.FileField(
@@ -114,4 +138,36 @@ class CategoriaForm(forms.ModelForm):
         # Prevent selecting itself as its parent (prevents database recursive deadlock)
         if self.instance and self.instance.pk:
             self.fields['parent'].queryset = Categoria.objects.exclude(pk=self.instance.pk)
+
+
+class TabelaPrecoForm(forms.ModelForm):
+    class Meta:
+        model = TabelaPreco
+        fields = ['nome', 'percentual_desconto_padrao']
+        widgets = {
+            'nome': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ex: Balcão, Oficina, Atacado'
+            }),
+            'percentual_desconto_padrao': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': '0.00',
+                'step': '0.01'
+            }),
+        }
+
+
+class PrecoProdutoTabelaForm(forms.ModelForm):
+    class Meta:
+        model = PrecoProdutoTabela
+        fields = ['tabela', 'produto', 'preco_venda']
+        widgets = {
+            'tabela': forms.Select(attrs={'class': 'form-control'}),
+            'produto': forms.Select(attrs={'class': 'form-control'}),
+            'preco_venda': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': '0.00',
+                'step': '0.01'
+            }),
+        }
 

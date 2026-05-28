@@ -7,10 +7,11 @@ from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
-from .models import Produto, EntradaEstoque, Categoria, CompatibilidadeProduto, MovimentacaoEstoque
-from .forms import ProdutoForm, ProdutoCSVImportForm, EntradaEstoqueForm, CategoriaForm
+from .models import Produto, EntradaEstoque, Categoria, CompatibilidadeProduto, MovimentacaoEstoque, TabelaPreco, PrecoProdutoTabela
+from .forms import ProdutoForm, ProdutoCSVImportForm, EntradaEstoqueForm, CategoriaForm, TabelaPrecoForm, PrecoProdutoTabelaForm
 import csv
 import io
+from decimal import Decimal
 
 class ProdutoListView(LoginRequiredMixin, ListView):
     model = Produto
@@ -35,11 +36,15 @@ class ProdutoListView(LoginRequiredMixin, ListView):
                 Q(nome__icontains=q) |
                 Q(marca__icontains=q) |
                 Q(ncm__icontains=q) |
+                Q(codigo_fabricante__icontains=q) |
                 Q(codigo_barras_ean__icontains=q) |
                 Q(compatibilidades__marca_carro__icontains=q) |
                 Q(compatibilidades__modelo_carro__icontains=q) |
                 Q(compatibilidades__ano_carro__icontains=q)
             )
+        else:
+            # Se não houver busca, lista apenas produtos pai ou simples (sem pai)
+            queryset = queryset.filter(parent__isnull=True)
             
         if status:
             if status == 'ok':
@@ -89,6 +94,9 @@ class ProdutoListView(LoginRequiredMixin, ListView):
         # Categories list
         context['categorias'] = Categoria.objects.all()
         
+        # Tabelas de Preço list
+        context['tabelas_preco'] = TabelaPreco.objects.all()
+        
         # Parameters to persist in pagination/filtering UI
         context['q'] = self.request.GET.get('q', '')
         context['status_filter'] = self.request.GET.get('status', '')
@@ -107,10 +115,31 @@ class ProdutoCreateView(LoginRequiredMixin, CreateView):
     template_name = 'catalogo/produto_form.html'
     success_url = reverse_lazy('estoque-listar')
 
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        for tabela in TabelaPreco.objects.all():
+            field_name = f'preco_tabela_{tabela.id}'
+            preco_val = self.request.POST.get(field_name)
+            if preco_val:
+                try:
+                    preco_val = Decimal(preco_val.replace(',', '.'))
+                    if preco_val > 0:
+                        PrecoProdutoTabela.objects.update_or_create(
+                            tabela=tabela,
+                            produto=self.object,
+                            defaults={'preco_venda': preco_val}
+                        )
+                except (ValueError, TypeError, Decimal.InvalidOperation):
+                    pass
+        messages.success(self.request, f"Produto '{self.object.nome}' cadastrado com sucesso!")
+        return response
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['titulo'] = "Cadastrar Nova Autopeça"
         context['botao_label'] = "Salvar Cadastro"
+        context['tabelas_preco'] = TabelaPreco.objects.all()
+        context['precos_customizados'] = {}
         return context
 
 class ProdutoUpdateView(LoginRequiredMixin, UpdateView):
@@ -119,10 +148,40 @@ class ProdutoUpdateView(LoginRequiredMixin, UpdateView):
     template_name = 'catalogo/produto_form.html'
     success_url = reverse_lazy('estoque-listar')
 
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        for tabela in TabelaPreco.objects.all():
+            field_name = f'preco_tabela_{tabela.id}'
+            preco_val = self.request.POST.get(field_name)
+            if preco_val:
+                try:
+                    preco_val = Decimal(preco_val.replace(',', '.'))
+                    if preco_val > 0:
+                        PrecoProdutoTabela.objects.update_or_create(
+                            tabela=tabela,
+                            produto=self.object,
+                            defaults={'preco_venda': preco_val}
+                        )
+                    else:
+                        PrecoProdutoTabela.objects.filter(tabela=tabela, produto=self.object).delete()
+                except (ValueError, TypeError, Decimal.InvalidOperation):
+                    pass
+            else:
+                PrecoProdutoTabela.objects.filter(tabela=tabela, produto=self.object).delete()
+        messages.success(self.request, f"Produto '{self.object.nome}' atualizado com sucesso!")
+        return response
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['titulo'] = f"Editar: {self.object.nome}"
         context['botao_label'] = "Salvar Alterações"
+        context['tabelas_preco'] = TabelaPreco.objects.all()
+        
+        precos_dict = {
+            p.tabela_id: float(p.preco_venda) 
+            for p in PrecoProdutoTabela.objects.filter(produto=self.object)
+        }
+        context['precos_customizados'] = precos_dict
         return context
 
 class ProdutoDeleteView(LoginRequiredMixin, DeleteView):
@@ -491,3 +550,117 @@ class CategoriaDeleteView(LoginRequiredMixin, DeleteView):
         self.object.delete()
         messages.success(request, f"Categoria '{nome}' excluída com sucesso! Subcategorias associadas foram removidas por cascata.")
         return redirect(self.get_success_url())
+
+
+class TabelaPrecoListView(LoginRequiredMixin, ListView):
+    model = TabelaPreco
+    template_name = 'catalogo/tabelapreco_list.html'
+    context_object_name = 'tabelas'
+
+
+class TabelaPrecoCreateView(LoginRequiredMixin, CreateView):
+    model = TabelaPreco
+    form_class = TabelaPrecoForm
+    template_name = 'catalogo/tabelapreco_form.html'
+    success_url = reverse_lazy('tabelapreco-listar')
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, f"Tabela de preços '{self.object.nome}' cadastrada com sucesso!")
+        return response
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo'] = "Criar Tabela de Preço"
+        context['botao_label'] = "Salvar Tabela"
+        return context
+
+
+class TabelaPrecoUpdateView(LoginRequiredMixin, UpdateView):
+    model = TabelaPreco
+    form_class = TabelaPrecoForm
+    template_name = 'catalogo/tabelapreco_form.html'
+    success_url = reverse_lazy('tabelapreco-listar')
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, f"Tabela de preços '{self.object.nome}' atualizada com sucesso!")
+        return response
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo'] = f"Editar Tabela: {self.object.nome}"
+        context['botao_label'] = "Salvar Alterações"
+        return context
+
+
+class TabelaPrecoDeleteView(LoginRequiredMixin, DeleteView):
+    model = TabelaPreco
+    template_name = 'catalogo/tabelapreco_confirm_delete.html'
+    success_url = reverse_lazy('tabelapreco-listar')
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        nome = self.object.nome
+        self.object.delete()
+        messages.success(request, f"Tabela de preços '{nome}' excluída com sucesso!")
+        return redirect(self.get_success_url())
+
+
+class TabelaPrecoPrecosView(LoginRequiredMixin, View):
+    template_name = 'catalogo/tabelapreco_precos.html'
+
+    def get(self, request, pk, *args, **kwargs):
+        tabela = TabelaPreco.objects.get(pk=pk)
+        produtos = Produto.objects.all().order_by('nome')
+        
+        precos_customizados = {
+            p.produto_id: float(p.preco_venda)
+            for p in PrecoProdutoTabela.objects.filter(tabela=tabela)
+        }
+        
+        produtos_list = []
+        for p in produtos:
+            preco_calculado = float(p.preco_venda) - (float(p.preco_venda) * float(tabela.percentual_desconto_padrao) / 100.0)
+            custom_preco = precos_customizados.get(p.id)
+            produtos_list.append({
+                'id': p.id,
+                'sku': p.sku,
+                'nome': p.nome,
+                'preco_venda_base': float(p.preco_venda),
+                'preco_calculado': preco_calculado,
+                'preco_customizado': custom_preco or 0.00,
+                'is_custom': custom_preco is not None and custom_preco > 0
+            })
+
+        return render(request, self.template_name, {
+            'tabela': tabela,
+            'produtos': produtos_list
+        })
+
+    def post(self, request, pk, *args, **kwargs):
+        tabela = TabelaPreco.objects.get(pk=pk)
+        
+        for key, value in request.POST.items():
+            if key.startswith('preco_prod_'):
+                try:
+                    prod_id = int(key.replace('preco_prod_', ''))
+                    produto = Produto.objects.get(id=prod_id)
+                    
+                    if value.strip():
+                        preco_val = Decimal(value.replace(',', '.'))
+                        if preco_val > 0:
+                            PrecoProdutoTabela.objects.update_or_create(
+                                tabela=tabela,
+                                produto=produto,
+                                defaults={'preco_venda': preco_val}
+                            )
+                        else:
+                            PrecoProdutoTabela.objects.filter(tabela=tabela, produto=produto).delete()
+                    else:
+                        PrecoProdutoTabela.objects.filter(tabela=tabela, produto=produto).delete()
+                except (ValueError, TypeError, Produto.DoesNotExist, Decimal.InvalidOperation):
+                    pass
+                    
+        messages.success(request, f"Preços da tabela '{tabela.nome}' atualizados com sucesso!")
+        return redirect('tabelapreco-listar')

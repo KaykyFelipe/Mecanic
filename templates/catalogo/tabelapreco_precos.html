@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Gerenciar Preços: {{ tabela.nome }} - Mecanic AutoPeças{% endblock %}
+{% block module_title %}Gerenciar Preços: {{ tabela.nome }}{% endblock %}
+
+{% block content %}
+<div class="glass-card" id="precos-glass-card">
+    <div class="card-header" style="justify-content: space-between; align-items: center; border-bottom: none; padding-bottom: 0.5rem; margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h2 class="card-title"><i class="fa-solid fa-calculator"></i> Definição de Preços: {{ tabela.nome }}</h2>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem; margin-bottom: 0;">
+                O desconto automático desta tabela é de <strong>{{ tabela.percentual_desconto_padrao }}%</strong>. 
+                Deixe o preço customizado em branco ou <code>0.00</code> para usar o valor calculado automaticamente.
+            </p>
+        </div>
+        
+        <div class="header-actions" style="display: flex; gap: 0.75rem; align-items: center;">
+            <a href="{% url 'tabelapreco-listar' %}" class="btn btn-secondary" id="btn-back-to-tabelas" style="border-radius: 6px; padding: 0.5rem 1rem;">
+                Cancelar
+            </a>
+            <button type="button" class="btn btn-primary" onclick="submitPrecosForm()" style="border-radius: 6px; padding: 0.5rem 1rem; background-color: var(--sidebar-bg); border-color: var(--sidebar-bg);">
+                <i class="fa-solid fa-floppy-disk" style="margin-right: 0.25rem;"></i> Salvar Alterações
+            </button>
+        </div>
+    </div>
+
+    <!-- Client-side filter input -->
+    <div class="filters-bar" style="margin-bottom: 1.5rem; background: rgba(9, 60, 102, 0.02); padding: 0.85rem 1.25rem; border-radius: 8px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 1rem;">
+        <span class="filter-label" style="font-weight: 700; color: var(--text-primary);"><i class="fa-solid fa-magnifying-glass"></i> Filtrar Peça:</span>
+        <input type="text" id="search-preco-input" onkeyup="filterPrecoTable()" class="form-control" placeholder="Buscar por Nome ou SKU da autopeça..." style="max-width: 400px; height: 38px; border-radius: 6px;">
+        <span id="filtered-count-label" style="font-size: 0.82rem; color: var(--text-muted); font-weight: 500;">Exibindo todos os {{ produtos|length }} itens</span>
+    </div>
+
+    <form method="post" id="precos-batch-form">
+        {% csrf_token %}
+        <div class="table-wrapper">
+            <table class="modern-table" id="precos-batch-table">
+                <thead>
+                    <tr>
+                        <th style="width: 150px;">SKU</th>
+                        <th>NOME DA AUTOPEÇA</th>
+                        <th style="width: 160px; text-align: right;">PREÇO BASE (BALCÃO)</th>
+                        <th style="width: 180px; text-align: right;">CÁLCULO AUTOMÁTICO ({{ tabela.percentual_desconto_padrao }}%)</th>
+                        <th style="width: 200px; text-align: center;">PREÇO CUSTOMIZADO (R$)</th>
+                        <th style="width: 150px; text-align: center;">STATUS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in produtos %}
+                    <tr class="preco-item-row" data-nome="{{ p.nome|lower }}" data-sku="{{ p.sku|lower }}">
+                        <td class="cell-sku">{{ p.sku }}</td>
+                        <td class="cell-bold">
+                            <span style="font-size: 0.92rem; color: var(--text-primary); font-weight: 600;">{{ p.nome }}</span>
+                        </td>
+                        <td style="text-align: right; color: var(--text-secondary); font-weight: 600;">
+                            R$ {{ p.preco_venda_base|floatformat:2 }}
+                        </td>
+                        <td style="text-align: right; color: var(--sidebar-bg); font-weight: 600; background-color: rgba(9, 60, 102, 0.02);">
+                            R$ {{ p.preco_calculado|floatformat:2 }}
+                        </td>
+                        <td style="text-align: center;">
+                            <div style="display: inline-flex; align-items: center; position: relative;">
+                                <span style="position: absolute; left: 10px; font-weight: 600; color: var(--text-muted); font-size: 0.85rem;">R$</span>
+                                <input type="number" 
+                                       step="0.01" 
+                                       name="preco_prod_{{ p.id }}" 
+                                       value="{% if p.is_custom %}{{ p.preco_customizado|floatformat:2 }}{% endif %}" 
+                                       class="form-control custom-price-input" 
+                                       placeholder="Calculado" 
+                                       oninput="updateRowStatus(this)"
+                                       style="width: 150px; padding-left: 28px; text-align: right; height: 34px; border-radius: 6px; font-weight: 700; border-color: {% if p.is_custom %}var(--sidebar-bg){% else %}var(--border-color){% endif %};">
+                            </div>
+                        </td>
+                        <td style="text-align: center;" class="status-cell">
+                            {% if p.is_custom %}
+                                <span class="badge-stock stock-low" style="color: #0369a1; border-color: #e0f2fe; background: #f0f9ff; font-weight: 600;">
+                                    Manual
+                                </span>
+                            {% else %}
+                                <span class="badge-stock stock-ok" style="color: #64748b; border-color: var(--border-color); background: #f8fafc; font-weight: 500;">
+                                    Automático
+                                </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6">
+                            <div class="empty-state">
+                                <i class="fa-solid fa-calculator" style="font-size: 2.5rem; margin-bottom: 0.75rem; display: block; color: var(--text-muted);"></i>
+                                <p>Nenhum produto cadastrado no estoque para definir preços.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="form-actions" style="margin-top: 1.5rem; justify-content: flex-end; display: flex; gap: 1rem;">
+            <a href="{% url 'tabelapreco-listar' %}" class="btn btn-secondary">
+                Cancelar
+            </a>
+            <button type="submit" class="btn btn-primary" style="background-color: var(--sidebar-bg); border-color: var(--sidebar-bg);">
+                <i class="fa-solid fa-floppy-disk" style="margin-right: 0.25rem;"></i> Salvar Alterações
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Client-side instant filtering for high performance
+    function filterPrecoTable() {
+        const query = document.getElementById("search-preco-input").value.toLowerCase().trim();
+        const rows = document.querySelectorAll(".preco-item-row");
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const nome = row.dataset.nome;
+            const sku = row.dataset.sku;
+            if (nome.includes(query) || sku.includes(query)) {
+                row.style.display = "";
+                visibleCount++;
+            } else {
+                row.style.display = "none";
+            }
+        });
+
+        const label = document.getElementById("filtered-count-label");
+        label.textContent = `Exibindo ${visibleCount} de ${rows.length} itens`;
+    }
+
+    // Dynamic row status change (Manual vs Automatic) when typing
+    function updateRowStatus(input) {
+        const row = input.closest(".preco-item-row");
+        const statusCell = row.querySelector(".status-cell");
+        
+        if (input.value.trim() !== "" && parseFloat(input.value) > 0) {
+            input.style.borderColor = "var(--sidebar-bg)";
+            statusCell.innerHTML = `
+                <span class="badge-stock stock-low" style="color: #0369a1; border-color: #e0f2fe; background: #f0f9ff; font-weight: 600;">
+                    Manual
+                </span>
+            `;
+        } else {
+            input.style.borderColor = "var(--border-color)";
+            statusCell.innerHTML = `
+                <span class="badge-stock stock-ok" style="color: #64748b; border-color: var(--border-color); background: #f8fafc; font-weight: 500;">
+                    Automático
+                </span>
+            `;
+        }
+    }
+
+    function submitPrecosForm() {
+        document.getElementById("precos-batch-form").submit();
+    }
+</script>
+{% endblock %}

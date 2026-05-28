@@ -47,6 +47,9 @@
             <a href="{% url 'estoque-importar-csv' %}" class="btn btn-secondary" id="btn-import-csv" style="border-radius: 6px; padding: 0.5rem 1rem;">
                 <i class="fa-solid fa-file-csv" style="margin-right: 0.25rem;"></i> Importar via CSV
             </a>
+            <a href="{% url 'tabelapreco-listar' %}" class="btn btn-secondary" id="btn-manage-prices" style="border-radius: 6px; padding: 0.5rem 1rem;">
+                <i class="fa-solid fa-tags" style="margin-right: 0.25rem;"></i> Listas de Preços
+            </a>
             <a href="{% url 'categoria-listar' %}" class="btn btn-secondary" id="btn-manage-categories" style="border-radius: 6px; padding: 0.5rem 1rem;">
                 <i class="fa-solid fa-folder-tree" style="margin-right: 0.25rem;"></i> Categorias
             </a>
@@ -182,6 +185,8 @@
                                        data-ean="{{ produto.codigo_barras_ean|default:'-' }}"
                                        data-marca="{{ produto.marca }}" 
                                        data-ncm="{{ produto.ncm }}" 
+                                       data-fabricante="{{ produto.codigo_fabricante|default:'-' }}"
+                                       data-unidade="{{ produto.get_unidade_medida_display|default:produto.unidade_medida }}"
                                        data-custo="{{ produto.preco_custo|default:0|floatformat:2 }}" 
                                        data-venda="{{ produto.preco_venda|floatformat:2 }}" 
                                        data-estoque="{{ produto.quantidade_estoque }}"
@@ -191,6 +196,9 @@
                                     </a>
                                     <br>
                                     <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 500;">EAN: {{ produto.codigo_barras_ean|default:"-" }}</span>
+                                    {% if produto.codigo_fabricante %}
+                                        <span style="font-size: 0.7rem; color: #093c66; font-weight: 600; margin-left: 0.5rem; background: #e6f0f6; padding: 0.1rem 0.35rem; border-radius: 3px;" title="Código do Fabricante / Part Number">Ref: {{ produto.codigo_fabricante }}</span>
+                                    {% endif %}
                                 </div>
                             </div>
                         </td>
@@ -213,7 +221,7 @@
                                 </span>
                             {% endif %}
                         </td>
-                        <td class="cell-bold">{{ produto.quantidade_estoque }}</td>
+                        <td class="cell-bold">{{ produto.quantidade_estoque }} <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">{{ produto.get_unidade_medida_display }}</span></td>
                         <td>
                             {% if produto.quantidade_estoque > produto.estoque_minimo %}
                                 <span class="badge-stock stock-ok" title="Mín: {{ produto.estoque_minimo }}{% if produto.estoque_maximo > 0 %} | Máx: {{ produto.estoque_maximo }}{% endif %}">
@@ -240,6 +248,88 @@
                             </div>
                         </td>
                     </tr>
+                    
+                    {% if produto.variacoes.exists %}
+                    <!-- Row for variations toggle button -->
+                    <tr id="row-variacoes-toggle-{{ produto.id }}" style="background: rgba(9, 60, 102, 0.01);">
+                        <td></td>
+                        <td colspan="10" style="padding: 0.35rem 1rem;">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="toggleVariacoes({{ produto.id }})" style="font-size: 0.72rem; padding: 0.25rem 0.6rem; border-radius: 4px; display: inline-flex; align-items: center; gap: 0.3rem;">
+                                <i class="fa-solid fa-chevron-down" id="chevron-var-{{ produto.id }}"></i> Mostrar {{ produto.variacoes.count }} Variações
+                            </button>
+                        </td>
+                    </tr>
+                    <!-- Dynamic child variation rows -->
+                    {% for var in produto.variacoes.all %}
+                    <tr class="row-variation-child-{{ produto.id }} row-variation-row" style="display: none; background: rgba(9, 60, 102, 0.015); border-left: 4px solid var(--sidebar-bg);">
+                        <td class="td-checkbox">
+                            <input type="checkbox" name="selected_products" value="{{ var.id }}" class="checkbox-modern product-checkbox">
+                        </td>
+                        <td class="cell-sku" style="padding-left: 1.5rem;">↳ {{ var.sku }}</td>
+                        <td class="cell-bold">
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <div style="background-color: #f1f5f9; color: var(--text-muted); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem;">
+                                    <i class="fa-solid fa-tag"></i>
+                                </div>
+                                <div>
+                                    <a href="#" class="product-name-link" 
+                                       data-id="{{ var.id }}" 
+                                       data-sku="{{ var.sku }}" 
+                                       data-nome="{{ var.nome }}" 
+                                       data-ean="{{ var.codigo_barras_ean|default:'-' }}"
+                                       data-marca="{{ var.marca }}" 
+                                       data-ncm="{{ var.ncm }}" 
+                                       data-fabricante="{{ var.codigo_fabricante|default:'-' }}"
+                                       data-unidade="{{ var.get_unidade_medida_display|default:var.unidade_medida }}"
+                                       data-custo="{{ var.preco_custo|default:0|floatformat:2 }}" 
+                                       data-venda="{{ var.preco_venda|floatformat:2 }}" 
+                                       data-estoque="{{ var.quantidade_estoque }}"
+                                       style="color: var(--text-primary); font-weight: 600; cursor: pointer; text-decoration: underline; text-decoration-style: dotted;"
+                                       title="Clique para detalhes rápidos">
+                                        {{ var.nome }}
+                                    </a>
+                                    {% if var.codigo_fabricante %}
+                                        <span style="font-size: 0.65rem; color: #093c66; font-weight: 600; margin-left: 0.5rem; background: #e6f0f6; padding: 0.05rem 0.25rem; border-radius: 3px;">Ref: {{ var.codigo_fabricante }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ var.marca }}</td>
+                        <td>{{ var.ncm }}</td>
+                        <td class="cell-bold" style="color: var(--text-secondary);">R$ {{ var.preco_custo|default:0|floatformat:2 }}</td>
+                        <td class="cell-bold">R$ {{ var.preco_venda|floatformat:2 }}</td>
+                        <td>
+                            {% if var.margem_lucro >= 30 %}
+                                <span class="badge-margin margin-high">{{ var.margem_lucro|floatformat:0 }}%</span>
+                            {% elif var.margem_lucro >= 15 %}
+                                <span class="badge-margin margin-medium">{{ var.margem_lucro|floatformat:0 }}%</span>
+                            {% else %}
+                                <span class="badge-margin margin-low">{{ var.margem_lucro|floatformat:0 }}%</span>
+                            {% endif %}
+                        </td>
+                        <td class="cell-bold">{{ var.quantidade_estoque }} <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 500;">{{ var.get_unidade_medida_display }}</span></td>
+                        <td>
+                            {% if var.quantidade_estoque > var.estoque_minimo %}
+                                <span class="badge-stock stock-ok">Ok</span>
+                            {% elif var.quantidade_estoque > 0 %}
+                                <span class="badge-stock stock-low">Baixo</span>
+                            {% else %}
+                                <span class="badge-stock stock-out">Esgotado</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="actions-cell">
+                                <a href="{% url 'estoque-editar' var.id %}" class="btn btn-secondary btn-sm">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </a>
+                                <a href="{% url 'estoque-excluir' var.id %}" class="btn btn-danger btn-sm">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% endif %}
                     {% empty %}
                     <tr>
                         <td colspan="11">
@@ -390,6 +480,10 @@
                     <div class="drawer-field-row">
                         <span class="drawer-field-name">Classificação NCM</span>
                         <span class="drawer-field-value" id="drawer-prod-ncm">-</span>
+                    </div>
+                    <div class="drawer-field-row">
+                        <span class="drawer-field-name">Part Number / Ref</span>
+                        <span class="drawer-field-value" id="drawer-prod-fabricante">-</span>
                     </div>
                 </div>
             </div>
@@ -710,6 +804,7 @@
     const drawerMarca = document.getElementById('drawer-prod-marca');
     const drawerEan = document.getElementById('drawer-prod-ean');
     const drawerNcm = document.getElementById('drawer-prod-ncm');
+    const drawerFabricante = document.getElementById('drawer-prod-fabricante');
     const drawerMarginBar = document.getElementById('drawer-margin-bar');
     const drawerEditLink = document.getElementById('drawer-edit-link');
     const drawerDeleteLink = document.getElementById('drawer-delete-link');
@@ -824,10 +919,11 @@
         // Fill data
         drawerNome.innerText = data.nome;
         drawerSku.innerText = data.sku;
-        drawerEstoque.innerText = data.estoque;
+        drawerEstoque.innerText = `${data.estoque} ${data.unidade}`;
         drawerMarca.innerText = data.marca || '-';
         drawerEan.innerText = data.ean || '-';
         drawerNcm.innerText = data.ncm || '-';
+        drawerFabricante.innerText = data.fabricante || '-';
         drawerCusto.innerText = `R$ ${parseFloat(data.custo).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         drawerVenda.innerText = `R$ ${parseFloat(data.venda).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         
@@ -873,22 +969,26 @@
         backdrop.classList.remove('open');
     }
 
-    drawerLinks.forEach(link => {
-        link.addEventListener('click', function(e) {
+    // Delegated click handler for name links (works statically and dynamically for variations)
+    document.addEventListener('click', function(e) {
+        const link = e.target.closest('.product-name-link');
+        if (link) {
             e.preventDefault();
             const data = {
-                id: this.dataset.id,
-                sku: this.dataset.sku,
-                nome: this.dataset.nome,
-                ean: this.dataset.ean,
-                marca: this.dataset.marca,
-                ncm: this.dataset.ncm,
-                custo: this.dataset.custo,
-                venda: this.dataset.venda,
-                estoque: this.dataset.estoque
+                id: link.dataset.id,
+                sku: link.dataset.sku,
+                nome: link.dataset.nome,
+                ean: link.dataset.ean,
+                marca: link.dataset.marca,
+                ncm: link.dataset.ncm,
+                fabricante: link.dataset.fabricante || '-',
+                unidade: link.dataset.unidade || 'UN',
+                custo: link.dataset.custo,
+                venda: link.dataset.venda,
+                estoque: link.dataset.estoque
             };
             openDrawer(data);
-        });
+        }
     });
 
     if (closeDrawerBtn) closeDrawerBtn.addEventListener('click', closeDrawer);
@@ -899,6 +999,31 @@
         const nome = btn.dataset.nome;
         if (confirm(`Tem certeza que deseja excluir o produto "${nome}"? Esta ação não poderá ser desfeita.`)) {
             window.location.href = `/produto/${id}/excluir/`;
+        }
+    }
+
+    // Toggle child variations expand/collapse
+    function toggleVariacoes(parentId) {
+        const rows = document.querySelectorAll(`.row-variation-child-${parentId}`);
+        const chevron = document.getElementById(`chevron-var-${parentId}`);
+        const btn = chevron.closest('button');
+        
+        let isVisible = false;
+        rows.forEach(row => {
+            if (row.style.display === "none") {
+                row.style.display = "";
+                isVisible = true;
+            } else {
+                row.style.display = "none";
+            }
+        });
+        
+        if (isVisible) {
+            chevron.className = "fa-solid fa-chevron-up";
+            btn.innerHTML = `<i class="fa-solid fa-chevron-up" id="chevron-var-${parentId}"></i> Ocultar Variações`;
+        } else {
+            chevron.className = "fa-solid fa-chevron-down";
+            btn.innerHTML = `<i class="fa-solid fa-chevron-down" id="chevron-var-${parentId}"></i> Mostrar ${rows.length} Variações`;
         }
     }
 </script>

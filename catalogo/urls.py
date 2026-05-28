@@ -23,4 +23,11 @@ urlpatterns = [
     path('categoria/nova/', views.CategoriaCreateView.as_view(), name='categoria-criar'),
     path('categoria/<int:pk>/editar/', views.CategoriaUpdateView.as_view(), name='categoria-editar'),
     path('categoria/<int:pk>/excluir/', views.CategoriaDeleteView.as_view(), name='categoria-excluir'),
+    
+    # Tabelas de Preço
+    path('tabelas-preco/', views.TabelaPrecoListView.as_view(), name='tabelapreco-listar'),
+    path('tabelas-preco/nova/', views.TabelaPrecoCreateView.as_view(), name='tabelapreco-criar'),
+    path('tabelas-preco/<int:pk>/editar/', views.TabelaPrecoUpdateView.as_view(), name='tabelapreco-editar'),
+    path('tabelas-preco/<int:pk>/excluir/', views.TabelaPrecoDeleteView.as_view(), name='tabelapreco-excluir'),
+    path('tabelas-preco/<int:pk>/precos/', views.TabelaPrecoPrecosView.as_view(), name='tabelapreco-precos'),
 ]

@@ -87,6 +87,39 @@ class Produto(models.Model):
         related_name='produtos',
         verbose_name="Categoria"
     )
+    UNIDADE_CHOICES = [
+        ('UN', 'Unidade'),
+        ('PÇ', 'Peça'),
+        ('JG', 'Jogo'),
+        ('L', 'Litro'),
+        ('KG', 'Quilograma'),
+        ('CX', 'Caixa'),
+        ('KT', 'Kit'),
+    ]
+    unidade_medida = models.CharField(
+        max_length=10,
+        choices=UNIDADE_CHOICES,
+        default='UN',
+        blank=True,
+        verbose_name="Unidade de Medida",
+        help_text="Unidade de comercialização do item."
+    )
+    codigo_fabricante = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        verbose_name="Código do Fabricante (Part Number)",
+        help_text="Código de referência do fabricante da autopeça."
+    )
+    parent = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='variacoes',
+        verbose_name="Produto Pai",
+        help_text="Associe a um produto pai se este item for uma variação física (ex: Lado Esquerdo/Direito)."
+    )
 
     class Meta:
         verbose_name = "Produto"
@@ -98,6 +131,28 @@ class Produto(models.Model):
         if self.preco_venda and self.preco_venda > 0:
             return float(((self.preco_venda - self.preco_custo) / self.preco_venda) * 100)
         return 0.0
+
+    def get_preco_tabela(self, tabela):
+        """
+        Retorna o preço do produto para uma tabela de preço específica.
+        Busca preço customizado ou aplica percentual de desconto.
+        """
+        if isinstance(tabela, str):
+            tabela_obj = TabelaPreco.objects.filter(nome__iexact=tabela).first()
+        elif isinstance(tabela, int):
+            tabela_obj = TabelaPreco.objects.filter(id=tabela).first()
+        else:
+            tabela_obj = tabela
+
+        if not tabela_obj:
+            return self.preco_venda
+
+        preco_custom = self.precos_tabelas.filter(tabela=tabela_obj).first()
+        if preco_custom and preco_custom.preco_venda > 0:
+            return preco_custom.preco_venda
+
+        desconto = self.preco_venda * (tabela_obj.percentual_desconto_padrao / Decimal('100.00'))
+        return self.preco_venda - desconto
 
     def __str__(self):
         return f"{self.sku} - {self.nome} ({self.marca})"
@@ -316,3 +371,41 @@ class MovimentacaoEstoque(models.Model):
     def __str__(self):
         sinal = "+" if self.tipo == 'E' else "-" if self.tipo == 'S' else ""
         return f"{self.produto.sku} | {self.get_tipo_display()}: {sinal}{self.quantidade} (Saldo: {self.saldo_atual})"
+
+
+class TabelaPreco(models.Model):
+    nome = models.CharField(max_length=100, unique=True, verbose_name="Nome da Tabela de Preço")
+    percentual_desconto_padrao = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        default=0.00, 
+        verbose_name="Desconto Padrão (%)",
+        help_text="Percentual de desconto automático aplicado a todos os produtos nesta tabela (ex: 10.00). Use valor negativo para acréscimo."
+    )
+
+    class Meta:
+        verbose_name = "Tabela de Preço"
+        verbose_name_plural = "Tabelas de Preços"
+        ordering = ["nome"]
+
+    def __str__(self):
+        return f"{self.nome} ({self.percentual_desconto_padrao}% desc.)"
+
+
+class PrecoProdutoTabela(models.Model):
+    tabela = models.ForeignKey(TabelaPreco, on_delete=models.CASCADE, related_name='precos', verbose_name="Tabela de Preço")
+    produto = models.ForeignKey(Produto, on_delete=models.CASCADE, related_name='precos_tabelas', verbose_name="Produto")
+    preco_venda = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        verbose_name="Preço de Venda Customizado",
+        help_text="Defina um preço fixo específico para este produto nesta tabela. Se deixado como 0.00 ou em branco, será usado o desconto percentual da tabela."
+    )
+
+    class Meta:
+        verbose_name = "Preço do Produto por Tabela"
+        verbose_name_plural = "Preços dos Produtos por Tabelas"
+        unique_together = ('tabela', 'produto')
+
+    def __str__(self):
+        return f"{self.produto.sku} - {self.tabela.nome}: R$ {self.preco_venda}"
