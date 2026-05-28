@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ titulo }} - Mecanic AutoPeças{% endblock %}
+{% block module_title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="glass-card" id="tabela-form-glass-card" style="max-width: 600px; margin: 2rem auto;">
+    <div class="card-header">
+        <h2 class="card-title"><i class="fa-solid fa-tags"></i> {{ titulo }}</h2>
+    </div>
+    
+    <form method="post" class="form-container" id="tabela-form">
+        {% csrf_token %}
+        
+        <!-- Form Errors if any -->
+        {% if form.errors %}
+            <div class="alert-box" id="form-error-alert">
+                <strong>Atenção:</strong> Por favor, corrija os erros abaixo.
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+        
+        <div class="form-grid" style="grid-template-columns: 1fr;">
+            <!-- Nome da Tabela -->
+            <div class="form-group" id="group-nome">
+                <label for="{{ form.nome.id_for_label }}">{{ form.nome.label }}</label>
+                {{ form.nome }}
+                {% if form.nome.help_text %}
+                    <span class="help-text">{{ form.nome.help_text }}</span>
+                {% endif %}
+                {{ form.nome.errors }}
+            </div>
+
+            <!-- Percentual de Desconto Padrão -->
+            <div class="form-group" id="group-desconto">
+                <label for="{{ form.percentual_desconto_padrao.id_for_label }}">{{ form.percentual_desconto_padrao.label }}</label>
+                <div style="position: relative; display: flex; align-items: center;">
+                    {{ form.percentual_desconto_padrao }}
+                    <span style="position: absolute; right: 12px; font-weight: 700; color: var(--text-muted);">%</span>
+                </div>
+                {% if form.percentual_desconto_padrao.help_text %}
+                    <span class="help-text">{{ form.percentual_desconto_padrao.help_text }}</span>
+                {% endif %}
+                {{ form.percentual_desconto_padrao.errors }}
+                <span class="help-text" style="margin-top: 0.25rem; font-size: 0.75rem; color: var(--text-muted);">
+                    <strong>Exemplo:</strong> Insira <code>10.00</code> para conceder 10% de desconto automático sobre o preço de venda base. Insira <code>-10.00</code> para acrescer 10%. Insira <code>0.00</code> se preferir definir os preços individualmente em reais para cada item.
+                </span>
+            </div>
+        </div>
+        
+        <!-- Form Actions -->
+        <div class="form-actions" style="margin-top: 1.5rem;">
+            <a href="{% url 'tabelapreco-listar' %}" class="btn btn-secondary" id="btn-cancel-form">
+                Cancelar
+            </a>
+            <button type="submit" class="btn btn-primary" id="btn-submit-form" style="background-color: var(--sidebar-bg); border-color: var(--sidebar-bg);">
+                {{ botao_label }}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Excluir Tabela de Preço - Mecanic AutoPeças{% endblock %}
+
+{% block content %}
+<div class="glass-card" id="delete-glass-card" style="max-width: 600px; margin: 4rem auto; text-align: center;">
+    <div class="card-header" style="justify-content: center;">
+        <h2 class="card-title" style="color: #f87171;"><i class="fa-solid fa-triangle-exclamation"></i> Confirmar Exclusão de Tabela de Preço</h2>
+    </div>
+    
+    <div class="alert-box" id="delete-alert" style="background-color: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; padding: 1rem; border-radius: 6px; margin: 1.5rem 0;">
+        Você está prestes a excluir definitivamente a tabela de preço <strong>{{ object.nome }}</strong>. 
+        <br>Todos os preços manuais customizados vinculados a esta tabela serão excluídos! Esta ação não poderá ser desfeita.
+    </div>
+    
+    <form method="post" id="delete-form">
+        {% csrf_token %}
+        <div class="form-actions" style="justify-content: center; gap: 1.5rem; border-top: none; padding-top: 0; display: flex;">
+            <a href="{% url 'tabelapreco-listar' %}" class="btn btn-secondary" id="btn-cancel-delete">
+                Cancelar
+            </a>
+            <button type="submit" class="btn btn-danger" id="btn-confirm-delete" style="background-color: #ef4444; border-color: #ef4444; color: white; padding: 0.5rem 1rem; border-radius: 6px;">
+                Sim, Excluir Definitivamente
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

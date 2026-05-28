@@ -58,6 +58,14 @@
                     </a>
                 </li>
                 <li>
+                    <a href="{% url 'categoria-listar' %}" class="sidebar-link {% if 'categoria-' in request.resolver_match.url_name %}active{% endif %}" id="menu-categorias">
+                        <div class="sidebar-link-content">
+                            <i class="fa-solid fa-folder-tree fa-fw"></i>
+                            <span>Categorias</span>
+                        </div>
+                    </a>
+                </li>
+                <li>
                     <div class="sidebar-link" id="menu-hr-inactive" style="cursor: not-allowed;">
                         <div class="sidebar-link-content">
                             <i class="fa-solid fa-sliders fa-fw"></i>

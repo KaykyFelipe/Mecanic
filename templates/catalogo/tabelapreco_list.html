@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Tabelas de Preços - Mecanic AutoPeças{% endblock %}
+{% block module_title %}Tabelas de Preços{% endblock %}
+
+{% block content %}
+<div class="glass-card" id="tabelas-glass-card">
+    <div class="card-header" style="justify-content: space-between; align-items: center; border-bottom: none; padding-bottom: 0.5rem; margin-bottom: 1.5rem;">
+        <h2 class="card-title"><i class="fa-solid fa-tags"></i> Tabelas de Preços Cadastradas</h2>
+        <div class="header-actions" style="display: flex; gap: 0.75rem; align-items: center;">
+            <a href="{% url 'estoque-listar' %}" class="btn btn-secondary" id="btn-back-to-products" style="border-radius: 6px; padding: 0.5rem 1rem;">
+                <i class="fa-solid fa-arrow-left" style="margin-right: 0.25rem;"></i> Voltar ao Estoque
+            </a>
+            <a href="{% url 'tabelapreco-criar' %}" class="btn btn-primary" id="btn-create-tabela" style="border-radius: 6px; padding: 0.5rem 1rem; background-color: var(--sidebar-bg); border-color: var(--sidebar-bg);">
+                <i class="fa-solid fa-plus" style="margin-right: 0.25rem;"></i> Nova Tabela de Preço
+            </a>
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="table-wrapper">
+        <table class="modern-table" id="tabelas-table">
+            <thead>
+                <tr>
+                    <th style="width: 80px; text-align: center;">ID</th>
+                    <th>NOME DA TABELA</th>
+                    <th>REAJUSTE / DESCONTO PADRÃO</th>
+                    <th style="width: 360px; text-align: center;">AÇÕES</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tabela in tabelas %}
+                <tr id="row-tabela-{{ tabela.id }}">
+                    <td style="text-align: center;" class="cell-sku">{{ tabela.id }}</td>
+                    <td class="cell-bold">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="background-color: #e6f0f6; color: var(--sidebar-bg); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0;">
+                                <i class="fa-solid fa-tags"></i>
+                            </div>
+                            <div>
+                                <span style="font-size: 0.95rem; font-weight: 600; color: var(--text-primary);">{{ tabela.nome }}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        {% if tabela.percentual_desconto_padrao > 0 %}
+                            <span class="badge-stock stock-ok" style="color: #0d6837; border-color: var(--success-border); font-weight: 600;">
+                                <i class="fa-solid fa-arrow-down" style="margin-right: 0.25rem;"></i> {{ tabela.percentual_desconto_padrao }}% de Desconto
+                            </span>
+                        {% elif tabela.percentual_desconto_padrao < 0 %}
+                            <span class="badge-stock stock-low" style="color: #c2410c; border-color: #ffedd5; font-weight: 600; background: #fffaf8;">
+                                <i class="fa-solid fa-arrow-up" style="margin-right: 0.25rem;"></i> {{ tabela.percentual_desconto_padrao|stringformat:"s"|slice:"1:" }}% de Acréscimo
+                            </span>
+                        {% else %}
+                            <span style="color: var(--text-muted); font-style: italic; font-size: 0.85rem;">Preço Base do Cadastro</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="actions-cell" style="justify-content: center; gap: 0.5rem;">
+                            <a href="{% url 'tabelapreco-precos' tabela.id %}" class="btn btn-secondary btn-sm" id="btn-precos-tabela-{{ tabela.id }}" style="background: var(--sidebar-bg); border-color: var(--sidebar-bg); color: #ffffff;">
+                                <i class="fa-solid fa-calculator"></i> Gerenciar Preços
+                            </a>
+                            <a href="{% url 'tabelapreco-editar' tabela.id %}" class="btn btn-secondary btn-sm" id="btn-edit-tabela-{{ tabela.id }}">
+                                <i class="fa-solid fa-pen-to-square"></i> Editar
+                            </a>
+                            <a href="{% url 'tabelapreco-excluir' tabela.id %}" class="btn btn-danger btn-sm" id="btn-delete-tabela-{{ tabela.id }}">
+                                <i class="fa-solid fa-trash-can"></i> Excluir
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4">
+                        <div class="empty-state">
+                            <i class="fa-solid fa-tags" style="font-size: 2.5rem; margin-bottom: 0.75rem; display: block; color: var(--text-muted);"></i>
+                            <p>Nenhuma tabela de preço cadastrada.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

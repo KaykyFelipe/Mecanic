@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ titulo }} - Mecanic AutoPeças{% endblock %}
+{% block module_title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="glass-card" id="form-glass-card" style="max-width: 800px; margin: 2rem auto;">
+    <div class="card-header">
+        <h2 class="card-title"><i class="fa-solid fa-truck-ramp-box"></i> {{ titulo }}</h2>
+    </div>
+    
+    <form method="post" class="form-container" id="product-form">
+        {% csrf_token %}
+        
+        <!-- Form Errors if any -->
+        {% if form.errors %}
+            <div class="alert-box" id="form-error-alert">
+                <strong>Atenção:</strong> Por favor, corrija os erros abaixo.
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+        
+        <div class="form-grid">
+            <!-- Produto Selection -->
+            <div class="form-group full-width" id="group-produto">
+                <label for="{{ form.produto.id_for_label }}">Selecione a Peça / Produto</label>
+                {{ form.produto }}
+                {% if form.produto.help_text %}
+                    <span class="help-text">{{ form.produto.help_text }}</span>
+                {% endif %}
+                {{ form.produto.errors }}
+            </div>
+            
+            <!-- Quantidade Comprada -->
+            <div class="form-group" id="group-quantidade">
+                <label for="{{ form.quantidade.id_for_label }}">Quantidade Comprada</label>
+                {{ form.quantidade }}
+                {% if form.quantidade.help_text %}
+                    <span class="help-text">{{ form.quantidade.help_text }}</span>
+                {% endif %}
+                {{ form.quantidade.errors }}
+            </div>
+
+            <!-- Preço de Custo Unitário -->
+            <div class="form-group" id="group-preco_custo">
+                <label for="{{ form.preco_custo.id_for_label }}">Custo Unitário Pago (R$)</label>
+                {{ form.preco_custo }}
+                {% if form.preco_custo.help_text %}
+                    <span class="help-text">{{ form.preco_custo.help_text }}</span>
+                {% endif %}
+                {{ form.preco_custo.errors }}
+            </div>
+
+            <!-- Observações / Notas -->
+            <div class="form-group full-width" id="group-observacao">
+                <label for="{{ form.observacao.id_for_label }}">Observações / Dados Adicionais</label>
+                {{ form.observacao }}
+                {% if form.observacao.help_text %}
+                    <span class="help-text">{{ form.observacao.help_text }}</span>
+                {% endif %}
+                {{ form.observacao.errors }}
+            </div>
+        </div>
+        
+        <!-- Form Actions -->
+        <div class="form-actions">
+            <a href="{% url 'estoque-listar' %}" class="btn btn-secondary" id="btn-cancel-form">
+                Cancelar
+            </a>
+            <button type="submit" class="btn btn-primary" id="btn-submit-form" style="background-color: var(--sidebar-bg); border-color: var(--sidebar-bg);">
+                {{ botao_label }}
+            </button>
+        </div>
+    </form>
+</div>
+
+{% if selected_produto %}
+<!-- PMP Purchases Audit Log Card -->
+<div class="glass-card" id="history-glass-card" style="max-width: 800px; margin: 0 auto 3rem auto;">
+    <div class="card-header" style="border-bottom: none; padding-bottom: 0.5rem; margin-bottom: 1.25rem;">
+        <h2 class="card-title" style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fa-solid fa-clock-rotate-left" style="color: var(--sidebar-bg);"></i> Histórico de Compras / PMP
+        </h2>
+        <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">
+            Peça: <strong style="color: var(--sidebar-bg);">{{ selected_produto.nome }}</strong> (SKU: {{ selected_produto.sku }})
+        </span>
+    </div>
+    
+    <div class="table-wrapper">
+        <table class="modern-table">
+            <thead>
+                <tr>
+                    <th>DATA DA COMPRA</th>
+                    <th>QUANTIDADE</th>
+                    <th>CUSTO UNITÁRIO</th>
+                    <th>VALOR TOTAL</th>
+                    <th>OBSERVAÇÕES / NOTA FISCAL</th>
+                    <th>AÇÕES</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entrada in entradas_historico %}
+                <tr>
+                    <td class="cell-bold" style="font-size: 0.82rem;">{{ entrada.data_entrada|date:"d/m/Y H:i" }}</td>
+                    <td class="cell-bold">{{ entrada.quantidade }} un</td>
+                    <td class="cell-bold" style="color: var(--text-secondary);">R$ {{ entrada.preco_custo|floatformat:2 }}</td>
+                    <td class="cell-bold" style="color: var(--text-primary);">R$ {{ entrada.custo_total|floatformat:2 }}</td>
+                    <td style="font-size: 0.82rem; color: var(--text-muted);">{{ entrada.observacao|default:"-" }}</td>
+                    <td>
+                        <form method="post" action="{% url 'estoque-entrada-excluir' entrada.id %}" style="display:inline;" onsubmit="return confirm('Tem certeza que deseja excluir esta entrada de estoque? O estoque físico e o preço médio ponderado (PMP) desta autopeça serão recalculados automaticamente.');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.72rem; border-radius: 4px; display: inline-flex; align-items: center; gap: 0.25rem; cursor: pointer;">
+                                <i class="fa-solid fa-trash-can" style="font-size: 0.75rem;"></i> Excluir
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6">
+                        <div class="empty-state" style="padding: 2rem 1rem;">
+                            <i class="fa-solid fa-receipt" style="font-size: 2rem; margin-bottom: 0.5rem; color: var(--text-muted);"></i>
+                            <p>Nenhuma entrada de estoque registrada para esta autopeça ainda.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="glass-card" id="history-placeholder-card" style="max-width: 800px; margin: 0 auto 3rem auto; text-align: center; padding: 2rem 1rem; border: 1.5px dashed var(--border-color); background: none; box-shadow: none;">
+    <i class="fa-solid fa-clipboard-list" style="font-size: 2rem; color: var(--text-muted); margin-bottom: 0.5rem; display: block;"></i>
+    <p style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">
+        Selecione uma autopeça acima para carregar o histórico de compras e custos.
+    </p>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const produtoSelect = document.getElementById("id_produto");
+        if (produtoSelect) {
+            produtoSelect.addEventListener("change", function() {
+                const selectedVal = this.value;
+                const urlParams = new URLSearchParams(window.location.search);
+                if (selectedVal) {
+                    urlParams.set("produto_id", selectedVal);
+                } else {
+                    urlParams.delete("produto_id");
+                }
+                window.location.search = urlParams.toString();
+            });
+        }
+    });
+</script>
+{% endblock %}
